@@ -165,8 +165,63 @@ imagined content.
 
 ---
 
-## Record before closing
+## Record before closing — completed 2026-08-25
 
-- Dark mode decision: ______
-- Typefaces and licensing: ______
-- Anything deliberately left undecided until real content exists: ______
+- **Dark mode decision: DARK ONLY.** Not responsive to `prefers-color-scheme`. Recorded in a
+  banner comment at the top of `tokens.colour.css` so nobody later assumes the tokens are
+  theme-ready — they are not, and adding a light palette means revisiting every value.
+  `test/contrast.spec.ts` asserts no `@media (prefers-color-scheme)` rule creeps in.
+
+- **Typefaces and licensing: none — a system stack, deliberately.** Recorded in a banner
+  comment in `tokens.type.css`. Type is the largest single character decision on this site,
+  and it is being made once real content exists rather than against placeholder prose. The
+  cost of deferring is one token change (`--font-body`, `--font-display`); nothing else in
+  the system depends on the family. When real faces are chosen: subset, woff2, self-hosted,
+  `font-display: swap`, preload above the fold.
+
+- **Register: austere editorial.** Near-monochrome, one warm accent (`--accent`, the only
+  warm value in the system), generous whitespace, media does the talking.
+
+- **Deliberately left undecided until real content exists:** the typefaces above; navigation
+  structure (the header is honest and provisional — real hierarchy is a Phase 4 output); and
+  every component beyond the single `.button` on the reference page. Primitives only, per the
+  guardrail.
+
+### Measured contrast
+
+All nine text/surface pairs clear WCAG AA, worst case 5.31:1. The reference page computes
+these live from the resolved cascade; `test/contrast.spec.ts` asserts the same pairs in CI,
+reading values straight from the stylesheet so the numbers cannot drift.
+
+| | `--surface` | `--surface-raised` | `--surface-sunken` |
+|---|---|---|---|
+| `--ink` | 16.78 | 15.68 | 17.28 |
+| `--ink-muted` | 8.25 | 7.71 | 8.49 |
+| `--ink-faint` | 5.68 | 5.31 | 5.84 |
+| `--accent` | 10.60 | 9.90 | 10.91 |
+
+### Three bugs the reference page caught
+
+Worth recording, because all three pass a casual look and fail in production:
+
+1. **`.center` overflowed the viewport by one gutter on phones.** The standard `box-sizing:
+   content-box` Center recipe misbehaves when the element is a flex item — which every Center
+   inside a Stack is. Now `border-box` with the gutters folded into `max-inline-size`.
+
+2. **`margin-inline: auto` on `.prose` switched off cross-axis stretch**, so its width came
+   from content — and a `100dvw` `.bleed` child then inflated the whole container past the
+   viewport. Fixed with a definite `inline-size: 100%`. Full-bleed media inside constrained
+   prose now lands at exactly 0 → viewport width at 360, 390, 768, 1024 and 1440.
+
+3. **`:nth-child(var(--stack-split, 1))` is invalid CSS.** Custom properties are not permitted
+   in selectors. It parsed fine in dev and failed only when lightningcss minified the
+   production build. There is now a test for it.
+
+### Verified
+
+- Keyboard pass through the reference page: skip link is the first stop, appears on focus,
+  and moves focus to `<main>`; focus order is skip → header → content; every control shows a
+  visible ring. The one `outline: none` is on `<main>` — a skip target, not a control — and
+  is commented as such.
+- No horizontal overflow at 360, 390, 768, 1024, 1440.
+- `pnpm lint`, `pnpm typecheck`, 83 tests, and `pnpm build` all pass.

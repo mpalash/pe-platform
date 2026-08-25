@@ -1,0 +1,137 @@
+/**
+ * Reset.
+ *
+ * Modern and minimal. Notably it does NOT strip all margins from everything —
+ * that trades one set of defaults for a fight with every prose block in Phase 4.
+ * Instead, base.css sets margins deliberately, and flow spacing is opt-in.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Margin is removed only where a default would otherwise be arbitrary. Prose
+   elements get their spacing back, on purpose, in base.css. */
+body,
+h1, h2, h3, h4, h5, h6,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Not `scroll-behavior: smooth` unconditionally — see the reduced-motion
+     block below. Smooth scrolling is a motion effect like any other. */
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100svh;
+  /*
+   * Guard for .bleed. It sizes to 100dvw, which on a platform with classic
+   * (space-taking) scrollbars is a few pixels wider than the content area —
+   * enough to create a horizontal scrollbar on every page carrying full-bleed
+   * media. `clip` removes that without creating a scroll container, so
+   * position: sticky descendants still work. `hidden` would break them.
+   */
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Media is block-level and never overflows its container. `max-width: 100%`
+   on its own causes aspect-ratio distortion once height is set; height:auto
+   is the other half of that pair. */
+img,
+picture,
+video,
+canvas,
+svg,
+iframe {
+  display: block;
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+/* Form controls do not inherit typography by default. They should. */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Long words and URLs break rather than forcing horizontal scroll. */
+p,
+h1, h2, h3, h4, h5, h6,
+li,
+dt,
+dd {
+  overflow-wrap: break-word;
+}
+
+/* Headings should not be broken across columns or pages mid-phrase. */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+:target {
+  scroll-margin-block-start: var(--space-2xl);
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-ink);
+}
+
+/**
+ * Reduced motion.
+ *
+ * Hard stop for anyone who has asked their system for less movement. This
+ * belongs in the reset rather than in components, so that code which forgets
+ * still behaves. Motion tokens collapse independently — belt and braces.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -98,10 +98,25 @@ structural.
 
 ---
 
+## Design system
+
+Hand-written tokens and six layout primitives in `app/assets/styles/`. No framework, no
+component library — that is the brief, and `pnpm test` enforces it.
+
+**The site is dark only** and **does not self-host fonts** (system stack, pending real
+content). Both are deliberate decisions, recorded in banner comments at the top of
+`tokens.colour.css` and `tokens.type.css`.
+
+`/reference` renders every token and primitive on one page, with contrast ratios computed
+live from the resolved cascade. It is what to look at when judging whether a token change
+holds together, and it is far cheaper to maintain than a Storybook at this scale.
+
+---
+
 ## Status
 
-**Phase 1 — foundation.** The app is deliberately unstyled: design starts in Phase 2, and
-starting it earlier would prejudge it.
+**Phase 2 — design system.** Tokens, primitives, chrome, and the reference page are in.
+Content blocks, the archive player, and real auth are Phases 3–5.
 
 `/spike` is the throwaway magic-link spike from Phase 1 §1.5. It works, and it is not the real
 implementation — Phase 5 builds that and deletes this. Findings are recorded in

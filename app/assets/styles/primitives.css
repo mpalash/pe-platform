@@ -1,0 +1,199 @@
+/**
+ * Layout primitives.
+ *
+ * Six of them, composable, no grid framework. Each does one job and takes its
+ * variation through a custom property, so a component tunes a primitive without
+ * a new class and without a media query.
+ *
+ * They are styled here rather than inside the Vue components so that raw HTML —
+ * rich text from Phase 4, ported archive markup from Phase 3 — can use them too.
+ *
+ * There are almost no media queries in this file. `auto-fit`/`minmax`, `flex-wrap`
+ * and `clamp()` cover responsive behaviour intrinsically, which is what keeps the
+ * system able to handle arrangements nobody has drawn yet.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CENTER — constrain to the measure and centre horizontally.
+   The default wrapper for readable content.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.center {
+  --center-measure: var(--measure);
+  --center-gutter: var(--space-gutter);
+
+  /*
+   * border-box, with the gutters folded into the max width, rather than the
+   * usual content-box recipe. content-box works for a plain block, but as a
+   * FLEX ITEM — which every Center inside a Stack is — the padding is added
+   * outside the stretched width and the element overflows the viewport by
+   * exactly one gutter on each side. That also drags any .bleed child
+   * off-centre, because bleed measures from its own centre.
+   */
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: calc(var(--center-measure) + var(--center-gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--center-gutter);
+}
+
+.center--wide { --center-measure: var(--measure-wide); }
+.center--narrow { --center-measure: var(--measure-narrow); }
+.center--full { --center-measure: 100%; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STACK — vertical rhythm. Space between siblings, never above the first or
+   below the last, so a Stack never adds space at its own edges.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.stack {
+  --stack-space: var(--space-m);
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.stack > * + * {
+  margin-block-start: var(--stack-space);
+}
+
+/*
+ * Flex items default to `min-width: auto`, meaning they refuse to shrink below
+ * their content's minimum. A .bleed child (100dvw wide) therefore forces its
+ * Stack item wider than the viewport and produces horizontal scroll on phones.
+ * min-inline-size: 0 restores ordinary block shrinking.
+ */
+.stack > * {
+  min-inline-size: 0;
+}
+
+/**
+ * `.stack--split` pushes the first child's siblings to the far end — the usual
+ * "content at top, actions at bottom" card, without absolute positioning or a
+ * wrapper element.
+ *
+ * The split point is fixed at the first child on purpose. Making it
+ * configurable would mean `:nth-child(var(--stack-split))`, and custom
+ * properties are not permitted in selectors — that parses in dev and fails only
+ * at minification. If a layout ever needs a different split point, add a second
+ * class rather than reaching for var() here.
+ */
+.stack--split > :first-child {
+  margin-block-end: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLUSTER — horizontal grouping that wraps. Navigation, tag lists, button rows.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.cluster {
+  --cluster-space: var(--space-s);
+  --cluster-align: center;
+  --cluster-justify: flex-start;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cluster-space);
+  align-items: var(--cluster-align);
+  justify-content: var(--cluster-justify);
+}
+
+.cluster--between { --cluster-justify: space-between; }
+.cluster--end { --cluster-justify: flex-end; }
+.cluster--baseline { --cluster-align: baseline; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GRID — responsive columns with no media queries. Items claim a minimum width
+   and the track count follows from the space available.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.grid {
+  --grid-min: 16rem;
+  --grid-space: var(--space-l);
+
+  display: grid;
+  gap: var(--grid-space);
+  /* min() stops the track minimum exceeding the container on narrow screens,
+     which is what otherwise causes horizontal overflow on phones. */
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--grid-min), 100%), 1fr));
+}
+
+/* Fixed column counts, for when the design genuinely means "three across". */
+.grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FRAME — aspect-ratio container. Essential for the archive: it reserves the
+   space before the media loads, which is what stops layout shift.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.frame {
+  --frame-ratio: 16 / 9;
+  --frame-fit: cover;
+
+  position: relative;
+  aspect-ratio: var(--frame-ratio);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.frame > :is(img, video, iframe, canvas, svg) {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: var(--frame-fit);
+}
+
+.frame--square { --frame-ratio: 1; }
+.frame--portrait { --frame-ratio: 3 / 4; }
+.frame--cinema { --frame-ratio: 21 / 9; }
+/* `contain` letterboxes rather than crops — correct for archive material whose
+   framing is the work, wrong for decorative thumbnails. */
+.frame--contain { --frame-fit: contain; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BLEED — escape the measure from inside constrained prose.
+
+   This matters more than it looks. An artistic archive wants full-bleed media
+   inside otherwise-constrained text, and retrofitting it means restructuring
+   the page wrapper. Built in from the start instead.
+
+   Works by pulling out from its own centre to the viewport edges, so it needs
+   no knowledge of its parent's width — but it DOES require that its parent is
+   horizontally centred. A left-aligned container throws the bleed off by half
+   the difference. `.prose` and `.center` are both centred for this reason.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.bleed {
+  /* Viewport units include the scrollbar on platforms that reserve space for
+     one, so this can end up a few pixels wider than the content area. The
+     `overflow-x: clip` on body in reset.css absorbs that; without it, every
+     page carrying full-bleed media gets a stray horizontal scrollbar. */
+  inline-size: 100dvw;
+  max-inline-size: 100dvw;
+  margin-inline: calc(50% - 50dvw);
+}
+
+/**
+ * `.bleed--gutter` bleeds to the viewport but keeps the page gutter, which is
+ * usually what "full width" actually means on a phone.
+ */
+.bleed--gutter {
+  inline-size: calc(100dvw - var(--space-gutter) * 2);
+  max-inline-size: calc(100dvw - var(--space-gutter) * 2);
+  margin-inline: calc(50% - 50dvw + var(--space-gutter));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SIDEBAR-adjacent helpers used by chrome. Not a primitive in their own right;
+   kept here because they are layout, not component styling.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.section {
+  padding-block: var(--space-section);
+}
+
+.rule {
+  border: 0;
+  border-block-start: 1px solid var(--rule);
+}

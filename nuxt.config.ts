@@ -2,7 +2,16 @@
 export default defineNuxtConfig({
 
   modules: ['@nuxt/eslint'],
+
+  components: [
+    // Layout primitives are used constantly; `<Stack>` reads better than
+    // `<UiStack>` at every call site.
+    { path: '~/components/ui', pathPrefix: false },
+    '~/components',
+  ],
   devtools: { enabled: true },
+
+  css: ['~/assets/styles/main.css'],
 
   /**
    * runtimeConfig top level is SERVER-ONLY. Anything the browser may read has to

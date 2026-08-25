@@ -1,0 +1,59 @@
+/**
+ * Colour tokens.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ THIS SITE IS DARK ONLY. It does not respond to prefers-color-scheme.    │
+ * │ Decided in Phase 2 §2.5, deliberately, and recorded here so nobody      │
+ * │ later assumes these tokens are theme-ready. They are not: there is no   │
+ * │ light palette, and adding one means revisiting every value below.       │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * Register: austere editorial. Near-monochrome, one warm accent, the media
+ * does the talking. Every value is neutral-cool except the accent, which is
+ * the only warm note and therefore the only thing that reads as a signal.
+ *
+ * Tokens are SEMANTIC (--ink, --surface), never literal (--grey-400). That is
+ * what makes a palette change a one-file edit.
+ *
+ * Contrast ratios are measured, not estimated — test/contrast.spec.ts computes
+ * every text/surface pair and fails below WCAG AA. The numbers in the comments
+ * are what that test currently reports.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ─── Surfaces ─────────────────────────────────────────────────────────── */
+  --surface: #0b0b0c; /* page ground */
+  --surface-raised: #141417; /* panels, cards, anything lifted off the page */
+  --surface-sunken: #060607; /* wells, video letterboxing, inset areas */
+
+  /* ─── Ink ──────────────────────────────────────────────────────────────── */
+  --ink: #ededeb; /* body and headings   — 16.78:1 on surface */
+  --ink-muted: #a8a8a4; /* secondary text      —  8.25:1 on surface */
+  --ink-faint: #8a8a86; /* captions, metadata  —  5.68:1 on surface */
+  --ink-inverse: #0b0b0c; /* text ON --accent    — 10.60:1 */
+
+  /* ─── Accent ───────────────────────────────────────────────────────────── */
+  /* The only warm value in the system. Used for links, focus and emphasis —
+     sparingly, or it stops meaning anything. 10.60:1 on surface. */
+  --accent: #e3b778;
+  --accent-dim: #b28d59;
+
+  /* ─── Lines and edges ──────────────────────────────────────────────────── */
+  /* Hairlines are decorative separators, not meaningful boundaries, so they are
+     exempt from the 3:1 non-text minimum. Anything load-bearing uses --ink-faint. */
+  --rule: #2a2a2e;
+  --rule-strong: #3d3d43;
+
+  /* ─── Focus ────────────────────────────────────────────────────────────── */
+  /* Must be visible against every surface token above. --accent clears 3:1 on
+     all three (9.90:1 worst case). Never replace this with `outline: none`. */
+  --focus: var(--accent);
+  --focus-width: 2px;
+  --focus-offset: 3px;
+
+  /* ─── State ────────────────────────────────────────────────────────────── */
+  --selection-bg: var(--accent);
+  --selection-ink: var(--ink-inverse);
+}

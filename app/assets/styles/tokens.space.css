@@ -1,0 +1,28 @@
+/**
+ * Space tokens.
+ *
+ * One scale, used everywhere. Consistency in spacing does more for coherence
+ * than almost anything else in a design system, and a second scale appearing
+ * later is how that coherence gets lost.
+ *
+ * Geometric, ~1.5×, anchored at --space-m = 1rem. The steps are deliberately
+ * few: if a layout needs a value between two steps, the layout is usually wrong.
+ */
+
+:root {
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-s: 0.75rem;
+  --space-m: 1rem;
+  --space-l: 1.5rem;
+  --space-xl: 2.25rem;
+  --space-2xl: 3.5rem;
+  --space-3xl: 5.5rem;
+  --space-4xl: 8rem;
+
+  /* Fluid steps for the gaps that should breathe with the viewport — section
+     rhythm and page gutters, not component internals. */
+  --space-section: clamp(3.5rem, 2.5rem + 5vw, 8rem);
+  --space-gutter: clamp(1rem, 0.6rem + 2vw, 2.25rem);
+}

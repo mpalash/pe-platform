@@ -1,0 +1,32 @@
+/**
+ * Motion tokens.
+ *
+ * `prefers-reduced-motion` is honoured HERE, at the token level, from the first
+ * animation rather than as a later pass (Phase 2 §2.1). Every duration collapses
+ * to 1ms when the user asks for reduced motion, so any transition written against
+ * these tokens is compliant by construction — nothing to remember per component.
+ *
+ * The reset also disables animation wholesale for that preference; this layer
+ * means even code that misses the reset still behaves.
+ */
+
+:root {
+  --duration-instant: 80ms;
+  --duration-quick: 160ms;
+  --duration-normal: 260ms;
+  --duration-slow: 480ms;
+
+  /* Austere register: nothing bounces, nothing overshoots. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-linear: linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 1ms;
+    --duration-quick: 1ms;
+    --duration-normal: 1ms;
+    --duration-slow: 1ms;
+  }
+}

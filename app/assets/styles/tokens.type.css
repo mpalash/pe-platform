@@ -1,0 +1,68 @@
+/**
+ * Type tokens.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ FONTS ARE NOT SELF-HOSTED. This is a deliberate, recorded decision       │
+ * │ (Phase 2 §2.1), not an oversight: typefaces are the largest single       │
+ * │ character decision on this site, and it is being made once real content  │
+ * │ exists rather than against placeholder prose.                            │
+ * │                                                                          │
+ * │ Until then, a system stack. It costs nothing, requests nothing, and      │
+ * │ renders instantly. When real faces are chosen they get subset to woff2,  │
+ * │ self-hosted, `font-display: swap`, and preloaded above the fold — and    │
+ * │ ONLY --font-body / --font-display below need to change.                  │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * The scale is fluid. `clamp()` removes an entire class of breakpoint work:
+ * sizes interpolate between a 20rem viewport and a 90rem one, so there are no
+ * type breakpoints to maintain anywhere else in the system.
+ */
+
+:root {
+  /* ─── Families ─────────────────────────────────────────────────────────── */
+  --font-body:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-display: var(--font-body);
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* ─── Fluid scale ──────────────────────────────────────────────────────── */
+  /* Ratio ~1.25 at the small end, opening to ~1.333 at the large end, so
+     display sizes gain more from a wide viewport than body text does. */
+  --text-2xs: clamp(0.694rem, 0.68rem + 0.07vw, 0.75rem);
+  --text-xs: clamp(0.833rem, 0.81rem + 0.11vw, 0.9rem);
+  --text-sm: clamp(0.9rem, 0.87rem + 0.15vw, 1rem);
+  --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  --text-md: clamp(1.2rem, 1.13rem + 0.35vw, 1.5rem);
+  --text-lg: clamp(1.44rem, 1.32rem + 0.6vw, 2rem);
+  --text-xl: clamp(1.728rem, 1.52rem + 1.04vw, 2.667rem);
+  --text-2xl: clamp(2.074rem, 1.74rem + 1.67vw, 3.556rem);
+  --text-3xl: clamp(2.488rem, 1.97rem + 2.6vw, 4.741rem);
+
+  /* ─── Weight ───────────────────────────────────────────────────────────── */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold: 650;
+
+  /* ─── Line height ──────────────────────────────────────────────────────── */
+  /* Display type sets tighter than body type; that difference is most of what
+     makes a type scale read as designed rather than scaled. */
+  --leading-tight: 1.08;
+  --leading-snug: 1.25;
+  --leading-normal: 1.6;
+  --leading-loose: 1.75;
+
+  /* ─── Tracking ─────────────────────────────────────────────────────────── */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.08em;
+
+  /* ─── Measure ──────────────────────────────────────────────────────────── */
+  /* ~66 characters. Editorial pages carry real prose and this is the single
+     most consequential number for whether it is readable. */
+  --measure: 34rem;
+  --measure-wide: 48rem; /* for text that sits beside media */
+  --measure-narrow: 26rem; /* pull quotes, captions */
+}
