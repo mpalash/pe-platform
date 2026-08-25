@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# nuxt / nitro build output
+.nuxt
+.output
+.data
+dist
+
+# environment — never commit real values
+.env
+.env.*
+!.env.example
+
+# local tooling
+.DS_Store
+*.log
+*.tsbuildinfo
+.vitest
+coverage
+.eslintcache
+
+# docker volumes mounted into the repo (none today; guard anyway)
+docker/data

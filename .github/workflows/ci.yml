@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # The service token must never reach the browser. `check:bundle` greps the
+      # built client output for it and fails the run if it appears. (Phase 1 §1.4)
+      - name: Build
+        run: pnpm build
+        env:
+          NUXT_DIRECTUS_URL: http://localhost:8055
+          NUXT_DIRECTUS_SERVICE_TOKEN: ci-placeholder-token-must-not-ship
+
+      - name: Assert no secret in client bundle
+        run: pnpm check:bundle
+        env:
+          NUXT_DIRECTUS_SERVICE_TOKEN: ci-placeholder-token-must-not-ship

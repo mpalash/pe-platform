@@ -1,0 +1,112 @@
+# Local development stack. `docker compose up` is half of the entire setup;
+# `pnpm dev` is the other half. No cloud account is needed for either.
+#
+# Every image is pinned to an exact version on purpose — a backend that
+# silently upgrades under you is a bad afternoon. (Phase 1 §1.2)
+
+name: pe-platform
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pe_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-directus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-directus}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-directus} -d ${POSTGRES_DB:-pe_platform}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit:v1.31.0
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - '${MAILPIT_SMTP_PORT:-1025}:1025' # SMTP trap
+      - '${MAILPIT_WEB_PORT:-8025}:8025' # web UI — read magic links here
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  directus:
+    image: directus/directus:12.3.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    ports:
+      - '${DIRECTUS_PORT:-8055}:8055'
+    volumes:
+      - directus_uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions
+    environment:
+      SECRET: ${DIRECTUS_SECRET:-local-development-secret-not-for-deployment}
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL:-http://localhost:8055}
+
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-pe_platform}
+      DB_USER: ${POSTGRES_USER:-directus}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-directus}
+
+      # Bootstrap: the admin account and the server-side service token are created
+      # from these on first boot, so setting up is a documented, repeatable step
+      # rather than clicking through a wizard. (Phase 1 §1.3)
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:-admin@localhost}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:-directus-local-admin}
+      ADMIN_TOKEN: ${DIRECTUS_SERVICE_TOKEN:-local-development-service-token}
+
+      # All outbound mail goes to the Mailpit trap. No credentials, no TLS —
+      # it is a local catcher, not a relay.
+      EMAIL_TRANSPORT: smtp
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@localhost}
+      EMAIL_SMTP_HOST: mailpit
+      EMAIL_SMTP_PORT: 1025
+      EMAIL_SMTP_SECURE: 'false'
+      EMAIL_SMTP_IGNORE_TLS: 'true'
+
+      CORS_ENABLED: 'true'
+      CORS_ORIGIN: ${NUXT_PUBLIC_SITE_URL:-http://localhost:3000}
+
+      # Quieter logs locally; raise to 'debug' when chasing something.
+      LOG_LEVEL: ${DIRECTUS_LOG_LEVEL:-info}
+    healthcheck:
+      # /server/ping is the public liveness probe. Do NOT use /server/health — it is
+      # permission-gated in Directus 12 and answers 403 unauthenticated, which reads
+      # as "unhealthy" forever on a server that is in fact fine.
+      # node is guaranteed present in this image; curl and wget are not.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8055/server/ping').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  pg_data:
+  directus_uploads:
+  mailpit_data:

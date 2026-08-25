@@ -1,0 +1,13 @@
+{
+  // Nuxt 4 generates one tsconfig per environment. This root file exists so
+  // editors and `pnpm typecheck` have a single entry point; the real settings
+  // (including the strict flags in nuxt.config.ts) live in the generated files.
+  "files": [],
+  "references": [
+    { "path": "./.nuxt/tsconfig.app.json" },
+    { "path": "./.nuxt/tsconfig.server.json" },
+    { "path": "./.nuxt/tsconfig.shared.json" },
+    { "path": "./.nuxt/tsconfig.node.json" },
+    { "path": "./tsconfig.tooling.json" }
+  ]
+}
