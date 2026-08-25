@@ -15,10 +15,19 @@ watch(() => route.path, () => {
   navOpen.value = false
 })
 
-const links = [
-  { to: '/', label: 'Index' },
+/**
+ * Navigation comes from the page tree, not a hand-kept list — top-level pages
+ * only, in their authored sort order. Still provisional: the real hierarchy is
+ * a Phase 4 content-design output, and this will be revised once it settles.
+ */
+const { data: pages } = await useFetch('/api/content/pages', { default: () => [] })
+
+const links = computed(() => [
+  ...(pages.value ?? [])
+    .filter(page => !page.parent && page.path !== '/')
+    .map(page => ({ to: page.path, label: page.title })),
   { to: '/reference', label: 'Reference' },
-]
+])
 </script>
 
 <template>

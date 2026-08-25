@@ -5,8 +5,10 @@
         justify="between"
         space="m"
       >
-        <small>An experimental archive. Phase 2 — design system.</small>
-        <small>Unstyled content is a Phase 4 problem.</small>
+        <small><em>purgatory</em> <strong>EDIT</strong> — an experimental archive.</small>
+        <small>
+          <NuxtLink to="/disclaimers">Disclaimers</NuxtLink>
+        </small>
       </Cluster>
     </div>
   </footer>

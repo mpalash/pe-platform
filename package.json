@@ -20,7 +20,10 @@
     "directus:snapshot": "tsx scripts/directus-schema.ts snapshot",
     "directus:apply": "tsx scripts/directus-schema.ts apply",
     "directus:bootstrap": "tsx scripts/directus-bootstrap.ts",
-    "check:bundle": "tsx scripts/check-client-bundle.ts"
+    "check:bundle": "tsx scripts/check-client-bundle.ts",
+    "directus:model": "tsx scripts/directus-content-model.ts",
+    "seed:pages": "tsx scripts/seed-pages.ts",
+    "directus:roles": "tsx scripts/directus-roles.ts"
   },
   "dependencies": {
     "@directus/sdk": "^25.0.0",

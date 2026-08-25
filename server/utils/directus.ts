@@ -13,10 +13,16 @@ import type { DirectusClient, RestClient, StaticTokenClient } from '@directus/sd
  * build if it appears. That check is the guard; this comment is the reason.
  */
 
-// The schema is deliberately untyped for now — Phase 4 models content and can
-// generate real collection types then. `any` here would be worse than unknown:
-// a loose record keeps the SDK generic happy without inventing collections.
-export type PlatformSchema = Record<string, unknown>
+/**
+ * Collections map to arrays of records — that shape is what lets `readItems`
+ * accept a collection name at all. A plain `Record<string, unknown>` typechecks
+ * on its own but makes every `readItems('pages')` an error, because the SDK
+ * infers valid collection names from it.
+ *
+ * Still deliberately loose on item shape: Phase 4 owns the content model, and
+ * generated collection types belong with it rather than hand-written here.
+ */
+export type PlatformSchema = Record<string, Record<string, unknown>[]>
 
 type PlatformDirectusClient
   = DirectusClient<PlatformSchema>

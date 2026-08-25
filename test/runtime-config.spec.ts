@@ -43,9 +43,17 @@ describe('secrets stay out of public runtime config', () => {
    */
   it('runtimeConfig.public contains no credential-shaped keys', () => {
     const publicBlock = nuxtConfig.match(/public:\s*\{([\s\S]*?)\n {4}\}/)?.[1] ?? ''
-
     expect(publicBlock).not.toBe('')
-    expect(publicBlock.toLowerCase()).not.toMatch(/token|secret|password|credential|serviceToken/i)
+
+    // Key declarations only. Comments in this block legitimately mention tokens
+    // — explaining why one is NOT here is the opposite of a violation.
+    const declaredKeys = [...publicBlock.matchAll(/^\s*(\w+):/gm)].map(match => match[1]!)
+
+    expect(declaredKeys.length).toBeGreaterThan(0)
+    for (const key of declaredKeys) {
+      expect(key, `runtimeConfig.public.${key} looks like a credential`)
+        .not.toMatch(/token|secret|password|credential|key$/i)
+    }
   })
 
   it('the service token is declared server-side, not under public', () => {

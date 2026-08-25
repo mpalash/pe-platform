@@ -7,6 +7,23 @@ export default defineNuxtConfig({
     // Layout primitives are used constantly; `<Stack>` reads better than
     // `<UiStack>` at every call site.
     { path: '~/components/ui', pathPrefix: false },
+    /*
+     * Block components need BOTH of these flags.
+     *
+     * `pathPrefix: false` — BlockRenderer resolves `block_richtext` to
+     *   `BlockRichtext`; with directory prefixing they register as
+     *   `BlocksBlockRichtext` and nothing matches.
+     *
+     * `global: true` — Nuxt normally resolves `resolveComponent('Foo')` at BUILD
+     *   time by reading the literal string. BlockRenderer passes a variable, which
+     *   cannot be analysed statically, so the components are never included in the
+     *   bundle and resolution fails at runtime. Registering them globally is what
+     *   makes a dynamic block renderer possible at all.
+     *
+     * Failure mode for either: the page renders completely empty, with the block
+     * content sitting invisibly in HTML attributes of an unknown element.
+     */
+    { path: '~/components/blocks', pathPrefix: false, global: true },
     '~/components',
   ],
   devtools: { enabled: true },
@@ -31,6 +48,10 @@ export default defineNuxtConfig({
     smtpPort: 1025, // NUXT_SMTP_PORT
     smtpFrom: '', // NUXT_SMTP_FROM
 
+    // Guards the draft-preview route. Server-only: a preview URL that leaks
+    // this lets anyone read unpublished content.
+    previewToken: 'local-development-preview-token', // NUXT_PREVIEW_TOKEN
+
     sessionCookieName: 'pe_session', // NUXT_SESSION_COOKIE_NAME
     // Secure cookies do not set over plain HTTP, so localhost needs this false.
     // Deployed environments set NUXT_SESSION_COOKIE_SECURE=true. (Phase 1 §1.5)
@@ -40,7 +61,36 @@ export default defineNuxtConfig({
 
     public: {
       siteUrl: 'http://localhost:3000', // NUXT_PUBLIC_SITE_URL
+      // The browser needs this to build /assets/<id> image URLs. It is a public
+      // URL, not a credential — the service token stays server-side above.
+      directusUrl: 'http://localhost:8055', // NUXT_PUBLIC_DIRECTUS_URL
     },
+  },
+
+  /*
+   * Rendering strategy (Phase 4 §4.5).
+   *
+   * Content pages are cached-and-revalidated rather than prerendered. Prerender
+   * would need a live Directus during `pnpm build`, which CI does not have and
+   * should not need — a build that depends on a running backend is a build that
+   * fails for reasons unrelated to the code.
+   *
+   * That also answers "how does a publish trigger a rebuild": it does not. The
+   * page revalidates within the window below. A Directus Flow calling a cache
+   * invalidation endpoint can make it immediate, but that needs a deploy target
+   * to point at — Phase 7. Editors are told the window; nobody is left
+   * publishing and wondering why nothing changed.
+   */
+  routeRules: {
+    // Draft content must never be cached or indexed.
+    // No `robots` key here — that belongs to a module we have not installed and
+    // do not need. An X-Robots-Tag header does the same job, and the preview page
+    // also sets noindex in its own head.
+    '/preview': { cache: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    // The API is the cache boundary's inside; caching here too would double the
+    // staleness window for no gain.
+    '/api/**': { cache: false },
+    '/**': { swr: 600 },
   },
 
   future: {

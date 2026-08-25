@@ -54,6 +54,18 @@ pnpm check:bundle          # asserts the Directus service token is absent from t
 
 pnpm directus:snapshot     # export the live Directus schema to directus/migrations/
 pnpm directus:apply        # apply the committed schema to local Directus
+pnpm directus:model        # create the content model (idempotent)
+pnpm directus:roles        # Editor role, permissions, Live Preview URL (idempotent)
+pnpm seed:pages            # seed the five real content pages
+```
+
+### First run, with content
+
+```bash
+docker compose up -d --wait
+pnpm install
+pnpm directus:model && pnpm directus:roles && pnpm seed:pages
+pnpm dev
 ```
 
 ### Schema changes are committed
@@ -113,10 +125,38 @@ holds together, and it is far cheaper to maintain than a Storybook at this scale
 
 ---
 
+## Content model
+
+Pages are a tree — hierarchy is the self-referencing `parent` field, and URLs are derived by
+walking it rather than stored, so they cannot drift. Each page is a list of blocks assembled
+in Directus's many-to-any interface.
+
+Six block types: `block_richtext`, `block_media`, `block_logos`, `block_people`, `block_faq`,
+`block_advisory`. Each one is justified by a page that needs it —
+[the argument is in the plan](docs/plan/04-phase-4-content-model.md).
+
+Adding a block type means two things and no more: a collection in
+`scripts/directus-content-model.ts`, and a name-matched component in
+`app/components/blocks/`. `block_thing` resolves to `BlockThing`. **Those components must stay
+registered with `pathPrefix: false` and `global: true`** — without either, blocks render as
+nothing at all, with their content sitting invisibly in HTML attributes.
+
+Blocks are dumb: the page fetches, the block renders. A block that fetches its own data is a bug.
+
+**Draft content is not reachable publicly.** Every public read goes through a Nitro route that
+filters to `status = 'published'`, and the Directus public role has no access to content
+collections at all. Drafts are visible only through the token-guarded `/preview` route that
+Directus Live Preview points at.
+
+---
+
 ## Status
 
-**Phase 2 — design system.** Tokens, primitives, chrome, and the reference page are in.
-Content blocks, the archive player, and real auth are Phases 3–5.
+**Phase 4 — content model.** Five real pages render from Directus. The archive player
+(Phase 3), magic-link auth (Phase 5) and booking (Phase 6) are still to come.
+
+Known gap: Directus stores uploads on local disk. It should point at the S3 assets bucket,
+which does not exist until Phase 3.
 
 `/spike` is the throwaway magic-link spike from Phase 1 §1.5. It works, and it is not the real
 implementation — Phase 5 builds that and deletes this. Findings are recorded in

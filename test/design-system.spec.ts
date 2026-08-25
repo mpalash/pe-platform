@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -142,5 +142,45 @@ describe('layout primitives', () => {
     const reset = withoutComments(styles('reset.css'))
     expect(reset).toMatch(/overflow-x:\s*clip/)
     expect(reset).not.toMatch(/overflow-x:\s*hidden/)
+  })
+})
+
+describe('block component naming', () => {
+  /**
+   * The mapping BlockRenderer uses, tested directly. It looks trivial and is
+   * not: the obvious implementation produces `Blockrichtext` for single-word
+   * blocks, and the failure mode is an entirely blank page with the content
+   * sitting invisibly in HTML attributes.
+   */
+  function nameFor(collection: string): string {
+    const stem = collection.replace(/^block_/, '')
+    const pascal = stem
+      .replace(/_(\w)/g, (_, char: string) => char.toUpperCase())
+      .replace(/^(\w)/, (_, char: string) => char.toUpperCase())
+    return `Block${pascal}`
+  }
+
+  it.each([
+    ['block_richtext', 'BlockRichtext'],
+    ['block_media', 'BlockMedia'],
+    ['block_faq', 'BlockFaq'],
+    ['block_logos', 'BlockLogos'],
+    ['block_people', 'BlockPeople'],
+    ['block_advisory', 'BlockAdvisory'],
+    ['block_archive_ref', 'BlockArchiveRef'],
+  ])('%s → %s', (collection, expected) => {
+    expect(nameFor(collection)).toBe(expected)
+  })
+
+  it('every block collection in the model has a matching component file', () => {
+    const model = readFileSync(resolve(repoRoot, 'scripts/directus-content-model.ts'), 'utf8')
+    const blocks = [...model.matchAll(/ensureCollection\('(block_\w+)'/g)].map(m => m[1]!)
+
+    expect(blocks.length).toBeGreaterThanOrEqual(6)
+
+    for (const collection of blocks) {
+      const file = resolve(repoRoot, `app/components/blocks/${nameFor(collection)}.vue`)
+      expect(existsSync(file), `${collection} has no ${nameFor(collection)}.vue`).toBe(true)
+    }
   })
 })
