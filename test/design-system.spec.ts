@@ -184,3 +184,61 @@ describe('block component naming', () => {
     }
   })
 })
+
+describe('marquee', () => {
+  const marquee = readFileSync(resolve(repoRoot, 'app/components/blocks/BlockMarquee.vue'), 'utf8')
+
+  it('stops entirely under prefers-reduced-motion, rather than slowing down', () => {
+    const reduced = marquee.slice(marquee.indexOf('prefers-reduced-motion'))
+    expect(reduced).toMatch(/animation:\s*none/)
+  })
+
+  it('re-lays-out as a wrapping row so every credit stays readable', () => {
+    const reduced = marquee.slice(marquee.indexOf('prefers-reduced-motion'))
+    expect(reduced).toMatch(/flex-wrap:\s*wrap/)
+    // The duplicate copies must go, or every name repeats down the page.
+    expect(reduced).toMatch(/\[aria-hidden='true'\][\s\S]{0,80}display:\s*none/)
+  })
+
+  it('pauses on hover and on focus, so a name can be read or clicked', () => {
+    expect(marquee).toMatch(/:hover[\s\S]{0,120}animation-play-state:\s*paused/)
+    expect(marquee).toMatch(/focus-within/)
+  })
+
+  it('travels exactly one copy per cycle, whatever the copy count', () => {
+    // A hard -50% only loops seamlessly with exactly two copies; the number of
+    // copies is measured at runtime, so the keyframe has to divide by it.
+    expect(marquee).toMatch(/translateX\(calc\(-100% \/ var\(--marquee-repeats/)
+  })
+
+  it('keeps duplicate copies out of the accessibility tree and the tab order', () => {
+    expect(marquee).toMatch(/aria-hidden="true"/)
+    expect(marquee).toMatch(/tabindex="-1"/)
+  })
+})
+
+describe('the error page', () => {
+  const errorPage = readFileSync(resolve(repoRoot, 'app/error.vue'), 'utf8')
+
+  it('clears the error on every route away from it', () => {
+    /*
+     * A plain <NuxtLink> on an error page changes the URL but leaves the error
+     * mounted, stranding the visitor on a 404 that follows them around. Every
+     * exit has to go through clearError.
+     */
+    expect(errorPage).toMatch(/clearError/)
+
+    // Comments stripped: the file explains why <NuxtLink> is wrong here, and
+    // saying so is the opposite of doing it.
+    const code = errorPage
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+
+    expect(code).not.toMatch(/<NuxtLink/)
+  })
+
+  it('is not indexable', () => {
+    expect(errorPage).toMatch(/robots:\s*'noindex'/)
+  })
+})

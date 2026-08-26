@@ -64,6 +64,7 @@ const BLOCKS = [
   'block_richtext',
   'block_media',
   'block_logos',
+  'block_marquee',
   'block_people',
   'block_faq',
   'block_advisory',

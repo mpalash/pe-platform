@@ -23,6 +23,9 @@ watch(() => route.path, () => {
 const { data: pages } = await useFetch('/api/content/pages', { default: () => [] })
 
 const links = computed(() => [
+  // The archive is not a Directus page — it is an application route with its
+  // own data source — so it is named here rather than coming from the tree.
+  { to: '/archive', label: 'Archive' },
   ...(pages.value ?? [])
     .filter(page => !page.parent && page.path !== '/')
     .map(page => ({ to: page.path, label: page.title })),

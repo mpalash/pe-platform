@@ -15,6 +15,82 @@ later is a change in one place.
 
 ---
 
+## Port status — recorded 2026-08-26
+
+The player and the search/filter toolbar are ported from pe-vue and working
+against the real archive: 30,651 clips, searchable, filterable, playing.
+
+**AWS work is NOT done.** §3.2 (bucket, distribution), §3.4 (faststart audit) and §3.8 (the
+HLS trigger) are all outstanding — they need an AWS account this repo does not have.
+
+### What was ported
+
+| From pe-vue | To here | Note |
+|---|---|---|
+| `VideoPlayer.vue` | `archive/ArchivePlayer.vue` | IntersectionObserver autoplay, centre-of-viewport test, play delay, single-active-player, muted by default |
+| `ArchiveToolbar.vue` | `archive/ArchiveToolbar.vue` | Search, bin range, shuffle, bookmarks |
+| `BinSelector.vue` | `archive/ArchiveBinSelector.vue` | Contiguous-range selection, behaviour unchanged |
+| `VideoFeed.vue` | `archive/ArchiveFeed.vue` | Virtualised feed |
+| Vuex `playlist` module | `useArchive()` | Same filters, derived rather than imperatively recomputed |
+| `data/edits.js` | `shared/utils/archive.ts` | Shaping only — builds no URLs |
+
+### Dependencies: one added, four dropped
+
+Added **minisearch** (the search index is the feature). Dropped **vuex**, **lodash**,
+**immutable** and **vue-virtual-scroller** — `useState` replaces the store, the four lodash
+helpers are one-liners, a `Map` is what Immutable stood in for, and the Vue 3 build of the
+scroller is still pre-release, so the feed uses a ~40-line window instead. **Font Awesome** is
+gone too: six glyphs became inline SVG.
+
+### The S3 problem, and how it is handled
+
+pe-vue points at `aam-purgatory-archive.s3.eu-north-1.amazonaws.com` directly. Hard rule 3
+forbids that. But hard rule 2 says a feature that cannot be exercised locally is not done, and
+a player with no media is not a port.
+
+So `usePlaybackSource` is the single seam (hard rule 5 — no container format appears anywhere
+else, and there is a test for it). It uses `NUXT_PUBLIC_MEDIA_BASE` whenever set. The S3
+origin is used **only** behind an explicit `NUXT_PUBLIC_MEDIA_ALLOW_ORIGIN_FALLBACK`, warns
+on every load, and shows a banner above the feed. **Setting that flag in a deployed
+environment is the bug hard rule 3 is about.**
+
+### Data-quality findings — these are the archive's, not the port's
+
+1. **167 records have an EMPTY `uid`, and three ids are reused** across different clips.
+   MiniSearch throws on a duplicate id, and it took down the entire feed rather than the 169
+   affected records. `assignStableIds` derives a filename-based id instead of dropping them.
+2. **12,433 clips (41%) have no `binCategory` at all.** Any intensity filter necessarily
+   excludes all of them. Worth knowing before anyone reads the filtered counts as coverage.
+3. **134 clips use bins outside the scale** — `INT` (94) and `Overlay/ Misc` (40). No
+   contiguous range over `BINS` can reach them, so they are findable by search and never by
+   the intensity filter. Inherited from pe-vue, which filtered the same way.
+
+Both 2 and 3 are recorded as tests against the real export, so a cleaned-up re-export will
+show up as a failing test rather than a silent change.
+
+### Deliberate departures from the original
+
+- **`preload="none"`, not `"auto"`.** The original preloaded every mounted clip. Against
+  whole-file MP4 egress that is money spent on clips nobody watches — the exact cost ADR-004
+  accepted and asked to watch.
+- **Bookmarks are localStorage, not PocketBase.** There are no accounts until Phase 5, and
+  ADR-002 makes Directus the user store when there are. Wiring a backend now would be building
+  the wrong integration twice.
+- **Search is always visible** rather than behind a magnifying-glass toggle. On a 30,000-item
+  archive it is the primary control.
+- **An advisory gate before the feed.** Clips autoplay, and the material is what it is;
+  someone should be able to decide not to see it first.
+- **A seek bar**, which the original did not have. Keyboard-operable for free.
+
+### Still to do here
+
+- Everything AWS: bucket, CloudFront, faststart audit, the HLS trigger with a named owner.
+- The `srcIndex` / source-browsing view (`SrcIndexView.vue`) was not ported — nothing links to
+  it yet. `collectSources` already provides the data.
+- Galaxy and mobile-specific archive views were not ported.
+
+---
+
 ## Decision: MP4 now, HLS later
 
 Serving the existing MP4s directly is the right call for now. Transcoding is deferred work,

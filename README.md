@@ -150,13 +150,32 @@ Directus Live Preview points at.
 
 ---
 
+## The archive
+
+`/archive` browses 30,651 clips with search, an intensity filter, shuffle and bookmarks.
+Ported from pe-vue; the metadata is a static file at `public/data/edits.json`.
+
+**Media URLs come from `usePlaybackSource` and nowhere else.** It is the seam that makes the
+later MP4 → HLS swap a one-place change, and it is the only file permitted to name a container
+format. Point `NUXT_PUBLIC_MEDIA_BASE` at a CloudFront distribution.
+
+Until that distribution exists, `NUXT_PUBLIC_MEDIA_ALLOW_ORIGIN_FALLBACK=true` lets the player
+read straight from the S3 bucket so it can be exercised locally. **Never set that in a deployed
+environment** — S3 egress is $0.09/GB billed per view, which is what hard rule 3 exists to
+prevent. It warns in the console and shows a banner above the feed.
+
+---
+
 ## Status
 
-**Phase 4 — content model.** Five real pages render from Directus. The archive player
-(Phase 3), magic-link auth (Phase 5) and booking (Phase 6) are still to come.
+**Phase 4 done, Phase 3 partly done.** Five real pages render from Directus, and the archive
+player and toolbar are ported and working. Magic-link auth (Phase 5) and booking (Phase 6) are
+still to come.
 
-Known gap: Directus stores uploads on local disk. It should point at the S3 assets bucket,
-which does not exist until Phase 3.
+Known gaps, both needing an AWS account:
+
+- Directus stores uploads on local disk; it should point at the S3 assets bucket.
+- No CloudFront distribution, no faststart audit, no HLS trigger — Phase 3 §3.2, §3.4, §3.8.
 
 `/spike` is the throwaway magic-link spike from Phase 1 §1.5. It works, and it is not the real
 implementation — Phase 5 builds that and deletes this. Findings are recorded in

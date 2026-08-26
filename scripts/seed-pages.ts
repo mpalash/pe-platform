@@ -69,7 +69,13 @@ const richtext = (body: string, opts: { title?: string, anchor?: string } = {}):
 })
 
 const media = (item: Record<string, unknown>): Block => ({ collection: 'block_media', item })
-const logos = (item: Record<string, unknown>): Block => ({ collection: 'block_logos', item })
+/*
+ * No page uses block_logos any more — the home page's supporters moved to
+ * block_marquee. The collection and its component are left in place rather than
+ * deleted: it is a working static-grid alternative and removing a Directus
+ * collection destroys data. Worth a deliberate decision either way.
+ */
+const marquee = (item: Record<string, unknown>): Block => ({ collection: 'block_marquee', item })
 const people = (item: Record<string, unknown>): Block => ({ collection: 'block_people', item })
 const faq = (item: Record<string, unknown>): Block => ({ collection: 'block_faq', item })
 const advisory = (item: Record<string, unknown>): Block => ({ collection: 'block_advisory', item })
@@ -131,10 +137,20 @@ const PAGES: PageSpec[] = [
         + '<p>In times where violence, conflict, and trauma are normalised as everyday happenings, '
         + '<em>purgatory</em> <strong>EDIT</strong> performs the task of critical storytelling.</p>',
       ),
-      logos({
+      /*
+       * Supporters run as marquees rather than static grids.
+       *
+       * Directions alternate so the four rows read as a moving credits wall
+       * instead of four independent tickers pulling the eye the same way.
+       * Under prefers-reduced-motion every one of these lays out as a plain
+       * wrapping row — see BlockMarquee.
+       */
+      marquee({
         title: 'Funding support',
         anchor: 'funding',
-        logos: [
+        speed: 'slow',
+        direction: 'left',
+        items: [
           { name: 'TAIKE', url: 'https://www.taike.fi/' },
           { name: 'Kone Foundation', url: 'https://koneensaatio.fi/' },
           { name: 'EU Creative Media', url: 'https://culture.ec.europa.eu/' },
@@ -142,29 +158,35 @@ const PAGES: PageSpec[] = [
           { name: 'Goethe Institut', url: 'https://www.goethe.de/' },
         ],
       }),
-      logos({
+      marquee({
         title: 'Development support',
         anchor: 'development',
-        logos: [
+        speed: 'slow',
+        direction: 'right',
+        items: [
           { name: 'EMAP', url: 'https://emap.eu/' },
           { name: 'Werkleitz', url: 'https://werkleitz.de/' },
           { name: 'Whistling Woods International', url: 'https://www.whistlingwoods.net/' },
           { name: 'CAD+SR', url: 'https://cadplussr.org/' },
         ],
       }),
-      logos({
+      marquee({
         title: 'Exhibition support',
         anchor: 'exhibition',
-        logos: [
+        speed: 'slow',
+        direction: 'left',
+        items: [
           { name: 'Transmediale', url: 'https://transmediale.de/' },
           { name: 'Project 88', url: 'https://project88.in/' },
           { name: 'Silent Green', url: 'https://silent-green.net/' },
         ],
       }),
-      logos({
+      marquee({
         title: 'Technical support',
         anchor: 'technical',
-        logos: [
+        speed: 'slow',
+        direction: 'right',
+        items: [
           { name: 'EMOTIV', url: 'https://www.emotiv.com/' },
           { name: 'VITURE', url: 'https://www.viture.com/' },
           { name: 'VDMX', url: 'https://vidvox.net/' },

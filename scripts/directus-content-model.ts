@@ -188,6 +188,7 @@ const BLOCKS = [
   'block_richtext',
   'block_media',
   'block_logos',
+  'block_marquee',
   'block_people',
   'block_faq',
   'block_advisory',
@@ -273,6 +274,54 @@ async function main(): Promise<void> {
         { field: 'url', type: 'string', name: 'Link', meta: { interface: 'input' } },
       ],
     }, 'Each logo needs a name — it is the alt text as well as the label.'),
+  ])
+
+  await ensureCollection('block_marquee', {
+    icon: 'swap_horiz',
+    note: 'A continuously scrolling row of names or logos. Used for supporters on the home page.',
+  }, [
+    text('title', { note: 'e.g. FUNDING SUPPORT' }),
+    anchor(),
+    {
+      field: 'speed',
+      type: 'string',
+      meta: {
+        interface: 'select-dropdown',
+        width: 'half',
+        options: {
+          choices: [
+            { text: 'Slow', value: 'slow' },
+            { text: 'Medium', value: 'medium' },
+            { text: 'Fast', value: 'fast' },
+          ],
+        },
+        note: 'Slow is usually right — a marquee that outruns reading is decoration, not credit.',
+      },
+      schema: { is_nullable: true, default_value: 'slow' },
+    },
+    {
+      field: 'direction',
+      type: 'string',
+      meta: {
+        interface: 'select-dropdown',
+        width: 'half',
+        options: {
+          choices: [
+            { text: 'Right to left', value: 'left' },
+            { text: 'Left to right', value: 'right' },
+          ],
+        },
+      },
+      schema: { is_nullable: true, default_value: 'left' },
+    },
+    json('items', {
+      template: '{{ name }}',
+      fields: [
+        { field: 'name', type: 'string', name: 'Name', meta: { interface: 'input', required: true } },
+        { field: 'image', type: 'uuid', name: 'Logo', meta: { interface: 'file-image', special: ['file'] } },
+        { field: 'url', type: 'string', name: 'Link', meta: { interface: 'input' } },
+      ],
+    }, 'Each entry needs a name — it is the alt text and the fallback when there is no logo.'),
   ])
 
   await ensureCollection('block_people', {
@@ -484,6 +533,22 @@ async function main(): Promise<void> {
       }),
     })
     console.log('  + pages_blocks.item → any block')
+  }
+  else {
+    /*
+     * PATCH, not skip. `one_allowed_collections` is the list of block types the
+     * page builder offers, and it is fixed at creation time — so adding a block
+     * type to BLOCKS above without updating this relation creates a collection
+     * that exists, has a component, and can never be added to a page. Silent,
+     * and confusing to debug from the admin UI.
+     */
+    await api('/relations/pages_blocks/item', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        meta: { one_allowed_collections: BLOCKS, one_collection_field: 'collection', junction_field: 'pages_id' },
+      }),
+    })
+    console.log(`  ~ pages_blocks.item → ${BLOCKS.length} block types`)
   }
 
   console.log('\n✓ Content model in place.')

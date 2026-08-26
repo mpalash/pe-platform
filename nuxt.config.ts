@@ -64,6 +64,19 @@ export default defineNuxtConfig({
       // The browser needs this to build /assets/<id> image URLs. It is a public
       // URL, not a credential — the service token stays server-side above.
       directusUrl: 'http://localhost:8055', // NUXT_PUBLIC_DIRECTUS_URL
+
+      /*
+       * Archive media. See app/composables/usePlaybackSource.ts — that is the
+       * only file allowed to turn these into a URL.
+       *
+       * mediaBase is the CloudFront distribution and is what production uses.
+       * mediaOrigin is the raw S3 bucket carried over from pe-vue; it is used
+       * ONLY when mediaAllowOriginFallback is explicitly true, because S3 egress
+       * is billed per view (hard rule 3).
+       */
+      mediaBase: '', // NUXT_PUBLIC_MEDIA_BASE — CloudFront, once it exists
+      mediaOrigin: '', // NUXT_PUBLIC_MEDIA_ORIGIN — S3 bucket, dev only
+      mediaAllowOriginFallback: false, // NUXT_PUBLIC_MEDIA_ALLOW_ORIGIN_FALLBACK
     },
   },
 
@@ -90,7 +103,12 @@ export default defineNuxtConfig({
     // The API is the cache boundary's inside; caching here too would double the
     // staleness window for no gain.
     '/api/**': { cache: false },
-    '/**': { swr: 600 },
+    /*
+     * Not cached in development. The window is correct for production but
+     * actively misleading locally: you change content, reload, and see the old
+     * page for ten minutes with nothing to indicate why.
+     */
+    '/**': process.env.NODE_ENV === 'production' ? { swr: 600 } : { cache: false },
   },
 
   future: {
