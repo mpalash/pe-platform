@@ -354,3 +354,27 @@ describe('the galaxy', () => {
     expect(galaxy).toMatch(/tabindex="0"/)
   })
 })
+
+describe('the modal steps to the next clip', () => {
+  const modal = readFileSync(
+    resolve(repoRoot, 'app/components/archive/ArchiveModalPlayer.vue'), 'utf8',
+  )
+
+  it('derives the source reactively rather than once at setup', () => {
+    /*
+     * `usePlaybackSource` returns plain strings. Destructuring it at setup gives
+     * a `src` that never changes, so stepping to the next clip updated the title
+     * and description while the <video> kept playing the first one — it looked
+     * like the metadata was broken when it was the video that never moved.
+     */
+    expect(modal).toMatch(/const source = computed\(\(\) => usePlaybackSource/)
+    expect(modal).not.toMatch(/const \{ src, poster \} = usePlaybackSource/)
+  })
+
+  it('calls load() when the clip changes', () => {
+    // Swapping `src` on an element that is already playing does not reliably
+    // re-fetch; the browser keeps decoding the old stream until told otherwise.
+    const stepWatcher = modal.slice(modal.indexOf('watch(() => props.item.id'))
+    expect(stepWatcher).toMatch(/el\.load\(\)/)
+  })
+})

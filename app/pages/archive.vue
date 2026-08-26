@@ -20,27 +20,9 @@ useSeoMeta({
 const archive = useArchive()
 const media = useMediaConfigured()
 const selection = useArchiveSelection()
+const { view } = useArchiveView()
 
 const advisoryAccepted = useState('archive:advisoryAccepted', () => false)
-
-/**
- * Three ways to look at the same filtered set.
- *
- *   feed   — one clip at a time, playing. Reading.
- *   grid   — thumbnails, many at once. Scanning.
- *   galaxy — the whole archive as a shape. Browsing.
- *
- * The toolbar filters all three, so switching view keeps your search.
- * Persisted, because it is a preference rather than a per-visit choice.
- */
-type ArchiveView = 'feed' | 'grid' | 'galaxy'
-const view = usePersistentState<ArchiveView>('archive:view', () => 'feed')
-
-const views: Array<{ id: ArchiveView, label: string }> = [
-  { id: 'feed', label: 'Feed' },
-  { id: 'grid', label: 'Grid' },
-  { id: 'galaxy', label: 'Galaxy' },
-]
 
 onMounted(async () => {
   archive.loadBookmarks()
@@ -106,19 +88,17 @@ onMounted(async () => {
       <ArchiveToolbar />
 
       <Center measure="full">
+        <!--
+          No media-origin banner. Serving from S3 is still wrong for anything
+          deployed, so the warning stays where it belongs: usePlaybackSource
+          logs it to the console on every load, and the .env comment says it.
+          A permanent banner over the archive taught readers to ignore it.
+        -->
         <p
           v-if="!media.configured"
           class="notice"
         >
-          Media is not configured, so clips will not play. Metadata, search and filtering all
-          work. Set <code>NUXT_PUBLIC_MEDIA_BASE</code> to a CloudFront distribution.
-        </p>
-        <p
-          v-else-if="media.usingOriginFallback"
-          class="notice notice--warn"
-        >
-          Serving video straight from S3, which is billed per view. Development only —
-          set <code>NUXT_PUBLIC_MEDIA_BASE</code> before deploying.
+          Media is not configured, so clips will not play. Search and filtering still work.
         </p>
 
         <p
@@ -134,26 +114,6 @@ onMounted(async () => {
           {{ archive.error.value }}
         </p>
 
-        <div class="archive__views">
-          <div
-            class="archive__switch"
-            role="group"
-            aria-label="View"
-          >
-            <button
-              v-for="option in views"
-              :key="option.id"
-              type="button"
-              class="archive__view"
-              :class="{ 'archive__view--on': view === option.id }"
-              :aria-pressed="view === option.id"
-              @click="view = option.id"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </div>
-
         <div
           v-if="view === 'feed'"
           class="archive__feed"
@@ -165,17 +125,23 @@ onMounted(async () => {
           v-else-if="view === 'grid'"
           :ids="archive.displayedIds.value"
         />
-
-        <!--
-          WebGL only exists in the browser, and the galaxy allocates a context
-          the moment it mounts — so it is client-only and only mounted while it
-          is the visible view. Leaving it mounted behind another tab would hold
-          a GPU context and keep rendering.
-        -->
-        <ClientOnly v-else>
-          <ArchiveGalaxy @pick="selection.open($event)" />
-        </ClientOnly>
       </Center>
+
+      <!--
+        The galaxy sits OUTSIDE the centred column: it is a view of the whole
+        archive and wants every pixel, so it spans the window and fills the
+        height left under the header and toolbar.
+
+        Client-only because WebGL exists only in the browser, and mounted only
+        while it is the visible view — leaving it behind another tab would hold
+        a GPU context and keep rendering.
+      -->
+      <ClientOnly v-if="view === 'galaxy'">
+        <ArchiveGalaxy
+          class="archive__galaxy"
+          @pick="selection.open($event)"
+        />
+      </ClientOnly>
 
       <ArchiveModalPlayer
         v-if="selection.item.value"
@@ -239,43 +205,26 @@ onMounted(async () => {
   color: var(--accent);
 }
 
+/*
+ * Full-bleed, and as tall as what is left of the window.
+ *
+ * 100svh rather than 100vh so mobile browser chrome does not push the bottom of
+ * the galaxy under the address bar. The subtraction is the header plus the
+ * sticky toolbar above it.
+ */
+.archive__galaxy {
+  /* Height left under the site header and the sticky toolbar. 100svh rather
+     than 100vh so mobile browser chrome does not push the bottom of the galaxy
+     out of reach behind the address bar. */
+  --archive-chrome: 8.5rem;
+
+  block-size: calc(100svh - var(--archive-chrome));
+}
+
 .archive__feed {
   /* The feed is a fixed-width column of clips, centred, like the original. */
   max-inline-size: 46rem;
   margin-inline: auto;
   padding-block-start: var(--space-l);
-}
-
-.archive__views {
-  display: flex;
-  justify-content: flex-end;
-  padding-block: var(--space-xs);
-}
-
-.archive__switch {
-  display: flex;
-  gap: 1px;
-}
-
-.archive__view {
-  border: 1px solid var(--rule);
-  padding: var(--space-2xs) var(--space-s);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  transition:
-    color var(--duration-quick) var(--ease-out),
-    border-color var(--duration-quick) var(--ease-out);
-}
-
-.archive__view:hover {
-  color: var(--ink);
-  border-color: var(--rule-strong);
-}
-
-.archive__view--on {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 </style>

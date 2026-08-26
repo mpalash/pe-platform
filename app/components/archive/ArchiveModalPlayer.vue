@@ -25,7 +25,19 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [], prev: [], next: [] }>()
 
 const archive = useArchive()
-const { src, poster } = usePlaybackSource(props.item.filename)
+
+/**
+ * COMPUTED, not destructured at setup.
+ *
+ * `usePlaybackSource` returns plain strings. Calling it once and pulling `src`
+ * out gives a value that never changes — so stepping to the next clip updated
+ * the title and description (which read `item` reactively in the template) while
+ * the <video> kept playing the first one. It looked like the metadata was
+ * broken; it was the video that never moved.
+ */
+const source = computed(() => usePlaybackSource(props.item.filename))
+const src = computed(() => source.value.src)
+const poster = computed(() => source.value.poster)
 
 const dialog = useTemplateRef<HTMLElement>('dialog')
 const videoEl = useTemplateRef<HTMLVideoElement>('videoEl')
@@ -177,7 +189,22 @@ onBeforeUnmount(() => {
 watch(() => props.item.id, () => {
   progress.value = 0
   currentTime.value = 0
-  nextTick(() => videoEl.value?.play().catch(() => {}))
+  duration.value = 0
+
+  nextTick(() => {
+    const el = videoEl.value
+    if (!el) return
+
+    /*
+     * `load()` is required. Changing the `src` attribute on an element that is
+     * already playing does not reliably re-fetch — the browser keeps decoding
+     * the old stream until told to start over.
+     */
+    el.load()
+    el.play().catch(() => {
+      isPlaying.value = false
+    })
+  })
 })
 </script>
 

@@ -36,7 +36,9 @@ const links = computed(() => [
   ...(pages.value ?? [])
     .filter(page => !page.parent && page.path !== '/')
     .map(page => ({ to: page.path, label: page.title })),
-  { to: '/reference', label: 'Reference' },
+  // /reference is deliberately absent. The design-system reference page still
+  // exists and is still the thing to look at when judging a token change — it
+  // is just developer documentation, not somewhere a visitor should be sent.
 ])
 </script>
 

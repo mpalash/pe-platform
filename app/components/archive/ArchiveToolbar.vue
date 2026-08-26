@@ -13,6 +13,7 @@
  *    inline SVG — no package, no webfont request, and they inherit currentColor.
  */
 const archive = useArchive()
+const { view, views } = useArchiveView()
 
 const {
   searchTerm, binRange, shuffled, bookmarksOnly, count, total, hasActiveFilters, bookmarks,
@@ -171,6 +172,26 @@ const countLabel = computed(() => {
         >
           {{ countLabel }}
         </p>
+
+        <!-- The view switcher sits with the filters because it is one: it
+             changes how the same filtered set is presented. -->
+        <div
+          class="toolbar__views"
+          role="group"
+          aria-label="View"
+        >
+          <button
+            v-for="option in views"
+            :key="option.id"
+            type="button"
+            class="toolbar__view"
+            :class="{ 'toolbar__view--on': view === option.id }"
+            :aria-pressed="view === option.id"
+            @click="view = option.id"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
     </Center>
   </div>
@@ -260,6 +281,33 @@ const countLabel = computed(() => {
 }
 
 .toolbar__toggle--on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toolbar__views {
+  display: flex;
+  gap: 1px;
+}
+
+.toolbar__view {
+  border: 1px solid var(--rule);
+  padding: var(--space-2xs) var(--space-s);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition:
+    color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out);
+}
+
+.toolbar__view:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.toolbar__view--on {
   color: var(--accent);
   border-color: var(--accent);
 }

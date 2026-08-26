@@ -70,7 +70,14 @@ const GALAXY = {
 }
 
 const SCENE_CFG = {
-  background: '#0b0b0c',
+  /*
+   * True black, not --surface-sunken.
+   *
+   * The galaxy is additively blended points against a void; any lift in the
+   * background greys the fog and flattens the depth the whole thing depends on.
+   * This is the one place the design tokens are deliberately not used.
+   */
+  background: '#000000',
   fogDensity: 0.0035,
   minDistance: 12,
   maxDistance: 380,
@@ -972,9 +979,11 @@ watch(() => archive.displayedIds.value, ids => applyPlaylist(ids))
 <style scoped>
 .galaxy {
   position: relative;
-  block-size: min(80svh, 46rem);
-  background: var(--surface-sunken);
-  border: 1px solid var(--rule);
+  /* Fills whatever the page gives it — the page decides how much space the
+     galaxy gets, because only the page knows what else is on screen. */
+  block-size: 100%;
+  min-block-size: 24rem;
+  background: #000;
   overflow: hidden;
 }
 
