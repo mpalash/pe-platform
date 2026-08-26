@@ -19,8 +19,28 @@ useSeoMeta({
 
 const archive = useArchive()
 const media = useMediaConfigured()
+const selection = useArchiveSelection()
 
 const advisoryAccepted = useState('archive:advisoryAccepted', () => false)
+
+/**
+ * Three ways to look at the same filtered set.
+ *
+ *   feed   — one clip at a time, playing. Reading.
+ *   grid   — thumbnails, many at once. Scanning.
+ *   galaxy — the whole archive as a shape. Browsing.
+ *
+ * The toolbar filters all three, so switching view keeps your search.
+ * Persisted, because it is a preference rather than a per-visit choice.
+ */
+type ArchiveView = 'feed' | 'grid' | 'galaxy'
+const view = usePersistentState<ArchiveView>('archive:view', () => 'feed')
+
+const views: Array<{ id: ArchiveView, label: string }> = [
+  { id: 'feed', label: 'Feed' },
+  { id: 'grid', label: 'Grid' },
+  { id: 'galaxy', label: 'Galaxy' },
+]
 
 onMounted(async () => {
   archive.loadBookmarks()
@@ -114,10 +134,58 @@ onMounted(async () => {
           {{ archive.error.value }}
         </p>
 
-        <div class="archive__feed">
+        <div class="archive__views">
+          <div
+            class="archive__switch"
+            role="group"
+            aria-label="View"
+          >
+            <button
+              v-for="option in views"
+              :key="option.id"
+              type="button"
+              class="archive__view"
+              :class="{ 'archive__view--on': view === option.id }"
+              :aria-pressed="view === option.id"
+              @click="view = option.id"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-if="view === 'feed'"
+          class="archive__feed"
+        >
           <ArchiveFeed :ids="archive.displayedIds.value" />
         </div>
+
+        <ArchiveGrid
+          v-else-if="view === 'grid'"
+          :ids="archive.displayedIds.value"
+        />
+
+        <!--
+          WebGL only exists in the browser, and the galaxy allocates a context
+          the moment it mounts — so it is client-only and only mounted while it
+          is the visible view. Leaving it mounted behind another tab would hold
+          a GPU context and keep rendering.
+        -->
+        <ClientOnly v-else>
+          <ArchiveGalaxy @pick="selection.open($event)" />
+        </ClientOnly>
       </Center>
+
+      <ArchiveModalPlayer
+        v-if="selection.item.value"
+        :item="selection.item.value"
+        :has-prev="selection.hasPrev.value"
+        :has-next="selection.hasNext.value"
+        @close="selection.close()"
+        @prev="selection.prev()"
+        @next="selection.next()"
+      />
     </template>
   </div>
 </template>
@@ -176,5 +244,38 @@ onMounted(async () => {
   max-inline-size: 46rem;
   margin-inline: auto;
   padding-block-start: var(--space-l);
+}
+
+.archive__views {
+  display: flex;
+  justify-content: flex-end;
+  padding-block: var(--space-xs);
+}
+
+.archive__switch {
+  display: flex;
+  gap: 1px;
+}
+
+.archive__view {
+  border: 1px solid var(--rule);
+  padding: var(--space-2xs) var(--space-s);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition:
+    color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out);
+}
+
+.archive__view:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.archive__view--on {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 </style>

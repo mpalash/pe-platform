@@ -87,6 +87,47 @@ barrier. Email is universal in a way social accounts are not.
 
 ---
 
+## Status — auth is live, storage is not finished (2026-08-26)
+
+The spike is gone. Its routes were promoted out of `/api/auth/spike/` to
+`/api/auth/`, `app/pages/spike.vue` is deleted, and sign-in now happens in a modal
+on the page rather than on a route of its own.
+
+**Working and verified by request:** request a link → mail lands in Mailpit → the link
+signs you in → replay is rejected → sign out clears the session. A display name given at
+registration is written to `directus_users.first_name` and carried on the session.
+
+**Added beyond the spike:** rate limiting (3 links per address and 10 per IP per 15
+minutes — without it the endpoint is an open mail relay, and since magic-link mail is the
+only way in, a burned sending domain locks out every user at once); a uniform response
+whether or not the account exists; real error states; and the display-name field.
+
+### "Register" under magic-link
+
+There is no separate registration. Requesting a link finds or creates the user, so signing
+in and registering are the same request. The UI shows two doors because people look for
+two doors — behind them is one flow. No passwords, and no Google or Facebook button:
+pe-vue had both, and ADR-002 rules out passwords entirely and rejects social identity
+providers. A test asserts neither creeps back.
+
+### The role decision (§0 finding 2), now made
+
+Site visitors are created with **no Directus role**, deliberately. A role-less user cannot
+sign into the Directus admin, which is exactly right for a visitor, and authorization for
+them lives in Nitro (ADR-002) — so there is nothing for a Directus role to grant. Recorded
+in `server/api/auth/request.post.ts` rather than left accidental.
+
+### STILL OUTSTANDING — storage
+
+**Login tokens and sessions are still in the spike's filesystem store** (`.data/auth` via
+unstorage). That is fine on one machine and wrong for anything deployed: it does not
+survive a redeploy and does not work across instances. §0 finding 3 calls for two Directus
+collections instead, which also gives admins visibility. **This must happen before Phase 7.**
+
+Also outstanding: session rotation on sign-in, and an admin view of active sessions.
+
+---
+
 ## 1. The situation
 
 Directus has **no native magic-link authentication**. It is a long-standing open request

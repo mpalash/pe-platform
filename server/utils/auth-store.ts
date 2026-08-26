@@ -1,12 +1,16 @@
 /**
- * ⚠️  SPIKE CODE — throwaway. Phase 1 §1.5. Expect to delete this.
+ * Login tokens and sessions.
  *
- * Storage for the magic-link spike. Deliberately the crudest thing that works:
- * Nitro's built-in unstorage with a filesystem driver under `.data/` (gitignored).
+ * Tokens are stored as a SHA-256 hash with an expiry, never in the clear, and
+ * are burned before a session is minted so a replayed link cannot mint a second
+ * one. Sessions are opaque random ids; the cookie carries the id and nothing
+ * else, so there is no client-side claim to forge (hard rule 6).
  *
- * Why not a Directus collection: the spike must not add throwaway collections to
- * a committed schema snapshot. Phase 5 makes the real decision about where login
- * tokens and sessions live — see 05-phase-5-auth-magic-link.md §0.
+ * ⚠️ STORAGE IS STILL THE SPIKE'S. Nitro's unstorage with a filesystem driver
+ * under `.data/`. That is fine on one machine and wrong for anything deployed:
+ * it does not survive a redeploy, and it does not work across instances.
+ * Phase 5 §0 finding 3 calls for two Directus collections instead, which also
+ * gives admins visibility. **That migration is outstanding.**
  */
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
@@ -18,16 +22,17 @@ interface LoginToken {
   usedAt: number | null
 }
 
-interface SpikeSession {
+interface StoredSession {
   userId: string
   email: string
+  name?: string | null
   expiresAt: number
 }
 
 const LOGIN_TOKEN_TTL_MS = 15 * 60 * 1000 // 15 minutes
 
 function storage() {
-  return useStorage('spike')
+  return useStorage('auth')
 }
 
 /** Store the hash, hand back the raw token. The raw value is never persisted. */
@@ -73,21 +78,27 @@ export async function consumeLoginToken(rawToken: string): Promise<ConsumeResult
   return { ok: true, userId: record.userId, email: record.email }
 }
 
-export async function createSession(userId: string, email: string, ttlDays: number): Promise<string> {
+export async function createSession(
+  userId: string,
+  email: string,
+  ttlDays: number,
+  name?: string | null,
+): Promise<string> {
   const sessionId = randomBytes(32).toString('base64url')
 
-  await storage().setItem<SpikeSession>(`session:${hashToken(sessionId)}`, {
+  await storage().setItem<StoredSession>(`session:${hashToken(sessionId)}`, {
     userId,
     email,
+    name: name ?? null,
     expiresAt: Date.now() + ttlDays * 24 * 60 * 60 * 1000,
   })
 
   return sessionId
 }
 
-export async function readSession(sessionId: string): Promise<SpikeSession | null> {
+export async function readSession(sessionId: string): Promise<StoredSession | null> {
   const key = `session:${hashToken(sessionId)}`
-  const session = await storage().getItem<SpikeSession>(key)
+  const session = await storage().getItem<StoredSession>(key)
 
   if (!session) return null
 

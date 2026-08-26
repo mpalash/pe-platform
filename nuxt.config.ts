@@ -117,14 +117,16 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-08-25',
 
   nitro: {
-    // ⚠️ SPIKE ONLY (Phase 1 §1.5). Filesystem-backed key-value store for the
-    // throwaway magic-link tokens and sessions. `.data/` is gitignored.
-    // Phase 5 decides where the real ones live; delete this mount with the spike.
+    /*
+     * Filesystem-backed store for login tokens and sessions. `.data/` is
+     * gitignored. Single-machine only — see server/utils/auth-store.ts for why
+     * this has to become Directus collections before anything is deployed.
+     */
     storage: {
-      spike: { driver: 'fs', base: '.data/spike' },
+      auth: { driver: 'fs', base: '.data/auth' },
     },
     devStorage: {
-      spike: { driver: 'fs', base: '.data/spike' },
+      auth: { driver: 'fs', base: '.data/auth' },
     },
   },
 

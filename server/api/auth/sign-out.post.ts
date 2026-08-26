@@ -1,6 +1,3 @@
-/**
- * ⚠️  SPIKE CODE — throwaway. Phase 1 §1.5.
- */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const sessionId = getCookie(event, config.sessionCookieName)

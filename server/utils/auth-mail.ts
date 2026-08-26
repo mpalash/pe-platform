@@ -1,6 +1,4 @@
 /**
- * ⚠️  SPIKE CODE — throwaway. Phase 1 §1.5.
- *
  * SMTP send. Locally this reaches Mailpit; deployed it will reach SES. The only
  * difference between the two is configuration, which is the point of ADR-005.
  *

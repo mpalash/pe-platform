@@ -22,6 +22,13 @@ watch(() => route.path, () => {
  */
 const { data: pages } = await useFetch('/api/content/pages', { default: () => [] })
 
+const auth = useAuth()
+const authModal = useAuthModal()
+
+// Identity is read from the server on mount — the cookie is HttpOnly, so the
+// client cannot know whether it is signed in without asking.
+onMounted(() => auth.refresh())
+
 const links = computed(() => [
   // The archive is not a Directus page — it is an application route with its
   // own data source — so it is named here rather than coming from the tree.
@@ -53,6 +60,35 @@ const links = computed(() => [
         {{ navOpen ? 'Close' : 'Menu' }}
         <span class="visually-hidden"> navigation</span>
       </button>
+
+      <div class="site-header__account">
+        <template v-if="auth.signedIn.value">
+          <span class="site-header__who">{{ auth.user.value?.name || auth.user.value?.email }}</span>
+          <button
+            type="button"
+            class="site-header__auth"
+            @click="auth.signOut()"
+          >
+            Sign out
+          </button>
+        </template>
+        <template v-else>
+          <button
+            type="button"
+            class="site-header__auth"
+            @click="authModal.openSignIn()"
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            class="site-header__auth"
+            @click="authModal.openRegister()"
+          >
+            Register
+          </button>
+        </template>
+      </div>
 
       <nav
         id="site-nav"
@@ -114,6 +150,33 @@ const links = computed(() => [
 .site-header__link:hover,
 .site-header__link.router-link-active {
   color: var(--ink);
+}
+
+.site-header__account {
+  display: flex;
+  gap: var(--space-s);
+  align-items: baseline;
+  order: 3;
+}
+
+.site-header__who {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
+  max-inline-size: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-header__auth {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.site-header__auth:hover {
+  color: var(--accent);
 }
 
 .site-header__toggle {

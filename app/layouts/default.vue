@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const authModal = useAuthModal()
+</script>
+
 <template>
   <div class="layout">
     <!--
@@ -20,6 +24,10 @@
     </main>
 
     <SiteFooter />
+
+    <!-- Mounted once at the layout level so any page can summon it, and so it
+         survives navigation between pages. -->
+    <AuthModal v-if="authModal.isOpen.value" />
   </div>
 </template>
 

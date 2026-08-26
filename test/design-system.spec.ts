@@ -242,3 +242,115 @@ describe('the error page', () => {
     expect(errorPage).toMatch(/robots:\s*'noindex'/)
   })
 })
+
+describe('auth', () => {
+  const requestRoute = readFileSync(resolve(repoRoot, 'server/api/auth/request.post.ts'), 'utf8')
+  const modal = readFileSync(resolve(repoRoot, 'app/components/AuthModal.vue'), 'utf8')
+
+  it('has no passwords and no social identity provider (ADR-002)', () => {
+    /*
+     * pe-vue had email+password plus Google and Facebook OAuth. ADR-002 rules
+     * out passwords entirely and rejects social sign-in as an external
+     * dependency and an access barrier.
+     *
+     * Checked against CODE, not prose: the modal's own copy says "there is no
+     * password to choose", and its comments name the providers it deliberately
+     * does not use. Both are the opposite of a violation.
+     */
+    const code = (source: string) => source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+      .replace(/<template>[\s\S]*?<\/template>/g, '')
+
+    // No password input anywhere, including the template.
+    expect(modal).not.toMatch(/type="password"/)
+
+    expect(code(modal).toLowerCase()).not.toMatch(/oauth|signinwithgoogle|facebook/)
+    expect(code(requestRoute).toLowerCase()).not.toMatch(/password/)
+  })
+
+  it('rate limits by address and by IP', () => {
+    // Otherwise the endpoint is an open mail relay, and magic-link mail is the
+    // only way in — a burned sending domain locks out every user at once.
+    expect(requestRoute).toMatch(/perAddress/)
+    expect(requestRoute).toMatch(/perIp/)
+    expect(requestRoute).toMatch(/statusCode: 429/)
+  })
+
+  it('answers identically whether or not the account exists', () => {
+    // Otherwise it is an oracle for "does this person have an account here",
+    // which for this archive is a disclosure that could matter.
+    expect(requestRoute).toMatch(/ACCEPTED/)
+  })
+
+  it('never trusts a client-supplied identity', () => {
+    const session = readFileSync(resolve(repoRoot, 'server/api/auth/session.get.ts'), 'utf8')
+    // Hard rule 6: identity comes from the cookie, server-side.
+    expect(session).toMatch(/getCookie/)
+    expect(session).not.toMatch(/readBody/)
+  })
+
+  it('burns the login token before minting a session', () => {
+    const store = readFileSync(resolve(repoRoot, 'server/utils/auth-store.ts'), 'utf8')
+    expect(store).toMatch(/usedAt/)
+    // Stored hashed, never in the clear.
+    expect(store).toMatch(/createHash\('sha256'\)/)
+  })
+})
+
+describe('the archive modal', () => {
+  const modal = readFileSync(
+    resolve(repoRoot, 'app/components/archive/ArchiveModalPlayer.vue'), 'utf8',
+  )
+
+  it('is a labelled dialog', () => {
+    expect(modal).toMatch(/role="dialog"/)
+    expect(modal).toMatch(/aria-modal="true"/)
+  })
+
+  it('closes on Escape and traps Tab', () => {
+    expect(modal).toMatch(/event\.key === 'Escape'/)
+    expect(modal).toMatch(/event\.key !== 'Tab'/)
+  })
+
+  it('restores focus to whatever opened it', () => {
+    expect(modal).toMatch(/previouslyFocused/)
+  })
+
+  it('does not pull in video.js', () => {
+    const pkg = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    expect(Object.keys(pkg.dependencies)).not.toContain('video.js')
+    expect(Object.keys(pkg.dependencies)).not.toContain('@videojs-player/vue')
+  })
+})
+
+describe('the galaxy', () => {
+  const galaxy = readFileSync(
+    resolve(repoRoot, 'app/components/archive/ArchiveGalaxy.vue'), 'utf8',
+  )
+
+  it('refreshes the camera matrix before projecting for a pick', () => {
+    /*
+     * `Vector3.project` reads camera.matrixWorldInverse, which three only
+     * refreshes inside renderer.render(). Picking runs between frames, so
+     * without this every tile projects outside the frustum and the galaxy is
+     * silently unclickable.
+     */
+    const pickFn = galaxy.slice(galaxy.indexOf('function pick('))
+    expect(pickFn).toMatch(/camera\.updateMatrixWorld\(\)/)
+  })
+
+  it('disposes its WebGL resources on unmount', () => {
+    // Contexts are not garbage collected; leaking one per view switch exhausts
+    // the browser's limit within a few toggles.
+    expect(galaxy).toMatch(/renderer\?\.dispose\(\)/)
+    expect(galaxy).toMatch(/atlasTexture\?\.dispose\(\)/)
+  })
+
+  it('is operable from the keyboard, not just the mouse', () => {
+    expect(galaxy).toMatch(/ArrowLeft/)
+    expect(galaxy).toMatch(/tabindex="0"/)
+  })
+})

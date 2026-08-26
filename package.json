@@ -30,6 +30,7 @@
     "minisearch": "^7.2.0",
     "nodemailer": "^9.0.5",
     "nuxt": "^4.5.2",
+    "three": "^0.185.1",
     "vue": "^3.5.41",
     "vue-router": "^4.6.3"
   },
@@ -38,6 +39,7 @@
     "@nuxt/test-utils": "^4.1.0",
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^8.0.1",
+    "@types/three": "^0.185.4",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^10.9.1",
     "happy-dom": "^20.11.6",
