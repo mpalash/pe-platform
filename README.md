@@ -57,6 +57,8 @@ pnpm directus:apply        # apply the committed schema to local Directus
 pnpm directus:model        # create the content model (idempotent)
 pnpm directus:roles        # Editor role, permissions, Live Preview URL (idempotent)
 pnpm seed:pages            # seed the five real content pages
+pnpm directus:prune        # report block items no page references
+                           #   (add --delete to remove them)
 ```
 
 ### First run, with content

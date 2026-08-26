@@ -1318,6 +1318,15 @@
               },
               "name": "Link",
               "type": "string"
+            },
+            {
+              "field": "group",
+              "meta": {
+                "interface": "input",
+                "note": "Optional, e.g. Funding. Not rendered — kept so a future design can label or sort by it."
+              },
+              "name": "Group",
+              "type": "string"
             }
           ],
           "template": "{{ name }}"

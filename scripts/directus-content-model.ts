@@ -120,6 +120,27 @@ async function ensureFields(collection: string, fields: FieldSpec[]): Promise<vo
   }
 }
 
+/** Updates the sub-fields of an existing list interface. */
+async function patchListFields(
+  collection: string,
+  field: string,
+  fields: Array<Record<string, unknown>>,
+): Promise<void> {
+  const existing = await api<{ meta?: { options?: Record<string, unknown> } }>(
+    `/fields/${collection}/${field}`,
+  )
+
+  if (!existing.ok || !existing.data) return
+
+  const options = { ...(existing.data.meta?.options ?? {}), fields }
+  const result = await api(`/fields/${collection}/${field}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ meta: { options } }),
+  })
+
+  if (result.ok) console.log(`  ~ ${collection}.${field} sub-fields (${fields.length})`)
+}
+
 /* ── field shorthands ────────────────────────────────────────────────────── */
 
 const text = (field: string, opts: { required?: boolean, note?: string, width?: string } = {}): FieldSpec => ({
@@ -320,6 +341,15 @@ async function main(): Promise<void> {
         { field: 'name', type: 'string', name: 'Name', meta: { interface: 'input', required: true } },
         { field: 'image', type: 'uuid', name: 'Logo', meta: { interface: 'file-image', special: ['file'] } },
         { field: 'url', type: 'string', name: 'Link', meta: { interface: 'input' } },
+        {
+          field: 'group',
+          type: 'string',
+          name: 'Group',
+          meta: {
+            interface: 'input',
+            note: 'Optional, e.g. Funding. Not rendered — kept so a future design can label or sort by it without re-entering everything.',
+          },
+        },
       ],
     }, 'Each entry needs a name — it is the alt text and the fallback when there is no logo.'),
   ])
@@ -380,6 +410,27 @@ async function main(): Promise<void> {
     richtext('body'),
     longText('detail', 'Optional long list — rendered inside a disclosure so it does not wall off the page.'),
     text('detail_label', { note: 'Label for the disclosure, e.g. "Show the full list of depicted content".' }),
+  ])
+
+  /*
+   * Sub-fields of a JSON list live in the field's meta.options, and ensureFields
+   * only ever CREATES fields — so adding an entry to a list interface after the
+   * field exists is invisible until the options are patched. Editors would see
+   * data they cannot edit.
+   */
+  await patchListFields('block_marquee', 'items', [
+    { field: 'name', type: 'string', name: 'Name', meta: { interface: 'input', required: true } },
+    { field: 'image', type: 'uuid', name: 'Logo', meta: { interface: 'file-image', special: ['file'] } },
+    { field: 'url', type: 'string', name: 'Link', meta: { interface: 'input' } },
+    {
+      field: 'group',
+      type: 'string',
+      name: 'Group',
+      meta: {
+        interface: 'input',
+        note: 'Optional, e.g. Funding. Not rendered — kept so a future design can label or sort by it.',
+      },
+    },
   ])
 
   console.log('\nPages')

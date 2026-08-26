@@ -138,59 +138,38 @@ const PAGES: PageSpec[] = [
         + '<em>purgatory</em> <strong>EDIT</strong> performs the task of critical storytelling.</p>',
       ),
       /*
-       * Supporters run as marquees rather than static grids.
+       * One marquee, not four.
        *
-       * Directions alternate so the four rows read as a moving credits wall
-       * instead of four independent tickers pulling the eye the same way.
-       * Under prefers-reduced-motion every one of these lays out as a plain
-       * wrapping row — see BlockMarquee.
+       * Four stacked tickers turned the foot of the home page into four
+       * competing bands of motion, and split the supporters into categories
+       * that matter to us and not to a reader. One row credits everyone
+       * equally, which is also the more honest thing to do with support.
+       *
+       * The grouping is not lost — it is carried per entry, so a future design
+       * can label or sort by it without re-entering anything.
        */
       marquee({
-        title: 'Funding support',
-        anchor: 'funding',
+        title: 'With the support of',
+        anchor: 'supporters',
         speed: 'slow',
         direction: 'left',
         items: [
-          { name: 'TAIKE', url: 'https://www.taike.fi/' },
-          { name: 'Kone Foundation', url: 'https://koneensaatio.fi/' },
-          { name: 'EU Creative Media', url: 'https://culture.ec.europa.eu/' },
-          { name: 'Finnland Institut', url: 'https://finnland-institut.de/' },
-          { name: 'Goethe Institut', url: 'https://www.goethe.de/' },
-        ],
-      }),
-      marquee({
-        title: 'Development support',
-        anchor: 'development',
-        speed: 'slow',
-        direction: 'right',
-        items: [
-          { name: 'EMAP', url: 'https://emap.eu/' },
-          { name: 'Werkleitz', url: 'https://werkleitz.de/' },
-          { name: 'Whistling Woods International', url: 'https://www.whistlingwoods.net/' },
-          { name: 'CAD+SR', url: 'https://cadplussr.org/' },
-        ],
-      }),
-      marquee({
-        title: 'Exhibition support',
-        anchor: 'exhibition',
-        speed: 'slow',
-        direction: 'left',
-        items: [
-          { name: 'Transmediale', url: 'https://transmediale.de/' },
-          { name: 'Project 88', url: 'https://project88.in/' },
-          { name: 'Silent Green', url: 'https://silent-green.net/' },
-        ],
-      }),
-      marquee({
-        title: 'Technical support',
-        anchor: 'technical',
-        speed: 'slow',
-        direction: 'right',
-        items: [
-          { name: 'EMOTIV', url: 'https://www.emotiv.com/' },
-          { name: 'VITURE', url: 'https://www.viture.com/' },
-          { name: 'VDMX', url: 'https://vidvox.net/' },
-          { name: 'Vuo', url: 'https://vuo.org/' },
+          { name: 'TAIKE', url: 'https://www.taike.fi/', group: 'Funding' },
+          { name: 'Kone Foundation', url: 'https://koneensaatio.fi/', group: 'Funding' },
+          { name: 'EU Creative Media', url: 'https://culture.ec.europa.eu/', group: 'Funding' },
+          { name: 'Finnland Institut', url: 'https://finnland-institut.de/', group: 'Funding' },
+          { name: 'Goethe Institut', url: 'https://www.goethe.de/', group: 'Funding' },
+          { name: 'EMAP', url: 'https://emap.eu/', group: 'Development' },
+          { name: 'Werkleitz', url: 'https://werkleitz.de/', group: 'Development' },
+          { name: 'Whistling Woods International', url: 'https://www.whistlingwoods.net/', group: 'Development' },
+          { name: 'CAD+SR', url: 'https://cadplussr.org/', group: 'Development' },
+          { name: 'Transmediale', url: 'https://transmediale.de/', group: 'Exhibition' },
+          { name: 'Project 88', url: 'https://project88.in/', group: 'Exhibition' },
+          { name: 'Silent Green', url: 'https://silent-green.net/', group: 'Exhibition' },
+          { name: 'EMOTIV', url: 'https://www.emotiv.com/', group: 'Technical' },
+          { name: 'VITURE', url: 'https://www.viture.com/', group: 'Technical' },
+          { name: 'VDMX', url: 'https://vidvox.net/', group: 'Technical' },
+          { name: 'Vuo', url: 'https://vuo.org/', group: 'Technical' },
         ],
       }),
     ],
@@ -444,6 +423,23 @@ async function findPage(slug: string): Promise<{ id: string } | undefined> {
   return found[0]
 }
 
+/** Removes the block items a page currently owns, so re-seeding leaves none behind. */
+async function deleteOwnedBlocks(pageId: string): Promise<void> {
+  const rows = await api<Array<{ collection: string, item: string }>>(
+    `/items/pages_blocks?filter[pages_id][_eq]=${pageId}&fields=collection,item&limit=-1`,
+  )
+
+  const byCollection = new Map<string, string[]>()
+  for (const row of rows) {
+    if (!row.collection || !row.item) continue
+    byCollection.set(row.collection, [...(byCollection.get(row.collection) ?? []), row.item])
+  }
+
+  for (const [collection, ids] of byCollection) {
+    await api(`/items/${collection}`, { method: 'DELETE', body: JSON.stringify(ids) })
+  }
+}
+
 async function seed(spec: PageSpec, sort: number): Promise<void> {
   const existing = await findPage(spec.slug)
 
@@ -471,9 +467,15 @@ async function seed(spec: PageSpec, sort: number): Promise<void> {
   }
 
   if (existing) {
-    // Replacing `blocks` wholesale drops the old junction rows; the orphaned
-    // block items are harmless in a seed and would be a real cleanup concern
-    // only if editors worked this way, which they do not.
+    /*
+     * Delete the page's OLD block items before replacing them.
+     *
+     * Patching `blocks` drops the junction rows but leaves the block items
+     * themselves behind. Three re-seeds left 42 orphans littering every block
+     * collection in the admin — which an editor then has to look at and wonder
+     * about. `pnpm directus:prune` clears any that already exist.
+     */
+    await deleteOwnedBlocks(existing.id)
     await api(`/items/pages/${existing.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
     console.log(`  ~ ${spec.slug || '(home)'} — ${spec.blocks.length} blocks`)
   }

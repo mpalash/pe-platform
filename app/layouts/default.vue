@@ -23,7 +23,11 @@ const authModal = useAuthModal()
       <slot />
     </main>
 
-    <SiteFooter />
+    <!--
+      No footer, for now. SiteFooter.vue is left in the repo rather than
+      deleted — "for now" reads as temporary, and the component is unchanged
+      and ready to drop back in by restoring this one line.
+    -->
 
     <!-- Mounted once at the layout level so any page can summon it, and so it
          survives navigation between pages. -->
