@@ -58,6 +58,26 @@ export const BINS = [
 export type Bin = typeof BINS[number]
 
 /**
+ * The colour of each bin, cool (peace) through warm (war).
+ *
+ * Shared rather than owned by the galaxy, because two things now render the
+ * scale — the galaxy's tiles and the toolbar's range selector — and a scale
+ * whose colours disagree between two views of the same data is worse than one
+ * with no colour at all.
+ *
+ * Not design tokens: these are data values that happen to be colours. A bin is
+ * a property of a clip, and the ramp has to stay ordered and evenly stepped in
+ * a way that a semantic token palette has no reason to preserve.
+ */
+export const BIN_COLORS: Record<string, string> = {
+  'Peace-05': '#6fb7c9', 'Peace-04': '#7cc0bd', 'Peace-03': '#8bc9ab',
+  'Peace-02': '#9ccf96', 'Peace-01': '#b3d489',
+  'War-01': '#d8cf7e', 'War-02': '#e3b778', 'War-03': '#e0a06a',
+  'War-04': '#db885f', 'War-05': '#d47156', 'War-06': '#cb5b4f',
+  'War-07': '#bf474b', 'War-08': '#b03647', 'War-09': '#9c2842', 'War-10': '#851d3c',
+}
+
+/**
  * Topics and keywords arrive as one string, variously comma- and
  * hash-separated. Ported verbatim in behaviour — the archive's own conventions,
  * not something to tidy.

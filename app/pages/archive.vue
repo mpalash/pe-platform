@@ -11,7 +11,7 @@
 definePageMeta({ layout: 'default' })
 
 useSeoMeta({
-  title: 'The Doomscroll Archive',
+  title: 'The Archive',
   description:
     'Over 30,000 clips excerpted from around 800 sources — an archive of moving images '
     + 'representative of histories of violence.',
@@ -44,7 +44,7 @@ onMounted(async () => {
     >
       <Center>
         <Stack space="m">
-          <h1>The Doomscroll Archive</h1>
+          <h1>The Archive</h1>
 
           <p class="gate__lede">
             Over 30,000 clips excerpted from around 800 sources. The material is documented
@@ -161,7 +161,8 @@ onMounted(async () => {
 
 <style scoped>
 .gate {
-  padding-block: var(--space-3xl);
+  /* Extra at the top for the floating header, which overlays this. */
+  padding-block: var(--space-4xl) var(--space-3xl);
 }
 
 .gate__lede {
@@ -219,18 +220,22 @@ onMounted(async () => {
  * sticky toolbar above it.
  */
 .archive__galaxy {
-  /* Height left under the site header and the sticky toolbar. 100svh rather
-     than 100vh so mobile browser chrome does not push the bottom of the galaxy
-     out of reach behind the address bar. */
-  --archive-chrome: 8.5rem;
-
-  block-size: calc(100svh - var(--archive-chrome));
+  /*
+   * The full window. Both the header and the toolbar float over the archive
+   * now rather than sitting above it, so there is no chrome height to subtract
+   * — the galaxy gets every pixel, which is what it always wanted.
+   *
+   * 100svh rather than 100vh so mobile browser chrome does not push the bottom
+   * of the galaxy out of reach behind the address bar.
+   */
+  block-size: 100svh;
 }
 
 .archive__feed {
   /* The feed is a fixed-width column of clips, centred, like the original. */
   max-inline-size: 46rem;
   margin-inline: auto;
-  padding-block-start: var(--space-l);
+  /* Clearance for the floating header, which opens at the top-left. */
+  padding-block-start: var(--space-4xl);
 }
 </style>

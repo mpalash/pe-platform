@@ -1,5 +1,5 @@
 {
-  "name": "pe-platform",
+  "name": "purgatory-edit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,8 @@
     "directus:model": "tsx scripts/directus-content-model.ts",
     "seed:pages": "tsx scripts/seed-pages.ts",
     "directus:roles": "tsx scripts/directus-roles.ts",
-    "directus:prune": "tsx scripts/directus-prune-orphans.ts"
+    "directus:prune": "tsx scripts/directus-prune-orphans.ts",
+    "directus:seed-settings": "tsx scripts/seed-settings.ts"
   },
   "dependencies": {
     "@directus/sdk": "^25.0.0",

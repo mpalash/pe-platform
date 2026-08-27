@@ -44,10 +44,20 @@ function select(index: number): void {
   emit('update:modelValue', [index, index])
 }
 
-/** `Peace-05` → `P5`, `War-10` → `W10`. */
-function abbreviate(bin: string): string {
-  const [prefix, number] = bin.split('-')
-  return `${prefix?.[0] ?? ''}${Number.parseInt(number ?? '0', 10)}`
+/**
+ * The scale is drawn as its colours, not as fifteen text labels.
+ *
+ * In a 240px column each bin gets about fourteen pixels, which is not enough
+ * for "W10" at any size anyone would want to read — the labels collided and
+ * the last one overflowed its cell. The colour ramp is the better signal
+ * anyway: it is the same ramp the galaxy colours its tiles with, so the scale
+ * and the thing it filters now look like each other.
+ *
+ * Nothing is lost for assistive tech or for a mouse: each button keeps its
+ * full bin name as visually-hidden text and as its title.
+ */
+function colorFor(bin: string): string {
+  return BIN_COLORS[bin] ?? 'transparent'
 }
 
 const label = computed(() => {
@@ -76,7 +86,11 @@ const label = computed(() => {
         @click="select(index)"
       >
         <span class="visually-hidden">{{ bin }}</span>
-        <span aria-hidden="true">{{ abbreviate(bin) }}</span>
+        <span
+          class="bins__swatch"
+          aria-hidden="true"
+          :style="{ background: colorFor(bin) }"
+        />
       </button>
     </div>
 
@@ -90,42 +104,64 @@ const label = computed(() => {
 </template>
 
 <style scoped>
+/*
+ * A column, because the toolbar is one. The label sits above the scale rather
+ * than beside it — fifteen bins plus a label will not fit across 240px on any
+ * reading of the type scale.
+ */
 .bins {
   display: flex;
-  /* nowrap: the toolbar is a single row, and a wrapping scale would make it
-     two. The label sits alongside rather than under. */
-  flex-wrap: nowrap;
-  gap: var(--space-s);
-  align-items: center;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  align-items: flex-start;
+  inline-size: 100%;
 }
 
+/*
+ * The fifteen bins are a scale, so they stay in one contiguous run: a grid of
+ * equal fractions rather than a flex row that wraps five onto a second line
+ * and breaks the peace-to-war reading. Equal columns also make the whole thing
+ * fit whatever width the panel is, without per-bin sizing.
+ */
 .bins__scale {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
   gap: 1px;
+  inline-size: 100%;
 }
 
 .bins__bin {
-  min-inline-size: 2.1rem;
-  padding: var(--space-2xs) var(--space-2xs);
-  border: 1px solid var(--rule);
-  background: var(--surface-raised);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
-  color: var(--ink-faint);
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  /* A comfortable hit target over a 6px swatch — the tappable area is the
+     button, not the mark inside it. */
+  block-size: 1.5rem;
+  display: grid;
+  place-items: stretch;
+  cursor: pointer;
+}
+
+/*
+ * Unselected bins are dimmed rather than hidden, so the full range of the
+ * scale stays visible while a subset of it is chosen.
+ */
+.bins__swatch {
+  display: block;
+  block-size: 100%;
+  opacity: 0.32;
   transition:
-    background var(--duration-quick) var(--ease-out),
-    color var(--duration-quick) var(--ease-out);
+    opacity var(--duration-quick) var(--ease-out),
+    outline-color var(--duration-quick) var(--ease-out);
 }
 
-.bins__bin:hover {
-  color: var(--ink);
-  border-color: var(--rule-strong);
+.bins__bin:hover .bins__swatch {
+  opacity: 0.7;
 }
 
-.bins__bin--active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--ink-inverse);
+.bins__bin--active .bins__swatch {
+  opacity: 1;
 }
 
 .bins__label {

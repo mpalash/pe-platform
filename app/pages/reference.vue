@@ -10,7 +10,7 @@
  * hand go stale; these cannot.
  */
 
-useHead({ title: 'Reference — pe-platform' })
+useHead({ title: 'Reference' })
 
 const surfaces = ['--surface', '--surface-raised', '--surface-sunken'] as const
 const inks = ['--ink', '--ink-muted', '--ink-faint', '--accent'] as const

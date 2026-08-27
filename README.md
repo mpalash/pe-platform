@@ -1,6 +1,10 @@
-# pe-platform
+# purgatory EDIT
 
 An experimental video archive, editorial pages, magic-link accounts, and slot booking.
+
+> The Docker Compose project is still named `pe-platform`. Renaming it would orphan the
+> existing Postgres volume and take the local database with it, so it is left alone
+> deliberately — change it only alongside a deliberate `docker compose down -v`.
 
 Nuxt 4 in front, Directus on Postgres behind. **The whole thing runs on localhost** — including
 the full sign-in flow. No cloud account, no credential, no vendor network access.

@@ -214,6 +214,36 @@
       }
     },
     {
+      "collection": "navigation",
+      "meta": {
+        "accountability": "all",
+        "archive_app_filter": true,
+        "archive_field": null,
+        "archive_value": null,
+        "autosave_revision_interval": null,
+        "collapse": "open",
+        "collection": "navigation",
+        "color": null,
+        "display_template": null,
+        "group": null,
+        "hidden": false,
+        "icon": "menu",
+        "item_duplication_fields": null,
+        "note": "The primary nav. Leave the list empty to fall back to the published page tree.",
+        "preview_url": null,
+        "singleton": true,
+        "sort": null,
+        "sort_field": null,
+        "status": "active",
+        "translations": null,
+        "unarchive_value": null,
+        "versioning": false
+      },
+      "schema": {
+        "name": "navigation"
+      }
+    },
+    {
       "collection": "pages",
       "meta": {
         "accountability": "all",
@@ -271,6 +301,36 @@
       },
       "schema": {
         "name": "pages_blocks"
+      }
+    },
+    {
+      "collection": "site_settings",
+      "meta": {
+        "accountability": "all",
+        "archive_app_filter": true,
+        "archive_field": null,
+        "archive_value": null,
+        "autosave_revision_interval": null,
+        "collapse": "open",
+        "collection": "site_settings",
+        "color": null,
+        "display_template": null,
+        "group": null,
+        "hidden": false,
+        "icon": "settings",
+        "item_duplication_fields": null,
+        "note": "Site identity and the default SEO/OG content used when a page does not set its own.",
+        "preview_url": null,
+        "singleton": true,
+        "sort": null,
+        "sort_field": null,
+        "status": "active",
+        "translations": null,
+        "unarchive_value": null,
+        "versioning": false
+      },
+      "schema": {
+        "name": "site_settings"
       }
     }
   ],
@@ -2216,6 +2276,130 @@
       }
     },
     {
+      "collection": "navigation",
+      "field": "id",
+      "type": "uuid",
+      "meta": {
+        "collection": "navigation",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "id",
+        "group": null,
+        "hidden": true,
+        "interface": "input",
+        "note": null,
+        "options": null,
+        "readonly": true,
+        "required": false,
+        "searchable": true,
+        "sort": 1,
+        "special": [
+          "uuid"
+        ],
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "id",
+        "table": "navigation",
+        "data_type": "uuid",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": false,
+        "is_unique": true,
+        "is_indexed": false,
+        "is_primary_key": true,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "navigation",
+      "field": "links",
+      "type": "json",
+      "meta": {
+        "collection": "navigation",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "links",
+        "group": null,
+        "hidden": false,
+        "interface": "list",
+        "note": "Order here is the order in the panel. Empty means \"use the page tree\".",
+        "options": {
+          "fields": [
+            {
+              "field": "label",
+              "meta": {
+                "interface": "input",
+                "required": true
+              },
+              "name": "Label",
+              "type": "string"
+            },
+            {
+              "field": "path",
+              "meta": {
+                "interface": "input",
+                "note": "A site path like /about, or a full URL for somewhere else.",
+                "required": true
+              },
+              "name": "Path or URL",
+              "type": "string"
+            },
+            {
+              "field": "external",
+              "meta": {
+                "interface": "boolean",
+                "note": "Renders a plain <a> rather than a client-side route. Set this for anything off-site."
+              },
+              "name": "External link",
+              "type": "boolean"
+            }
+          ],
+          "template": "{{ label }}"
+        },
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 2,
+        "special": [
+          "cast-json"
+        ],
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "links",
+        "table": "navigation",
+        "data_type": "json",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
       "collection": "pages",
       "field": "id",
       "type": "uuid",
@@ -2917,6 +3101,453 @@
         "max_length": null,
         "numeric_precision": 32,
         "numeric_scale": 0,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "id",
+      "type": "uuid",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "id",
+        "group": null,
+        "hidden": true,
+        "interface": "input",
+        "note": null,
+        "options": null,
+        "readonly": true,
+        "required": false,
+        "searchable": true,
+        "sort": 1,
+        "special": [
+          "uuid"
+        ],
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "id",
+        "table": "site_settings",
+        "data_type": "uuid",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": false,
+        "is_unique": true,
+        "is_indexed": false,
+        "is_primary_key": true,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "site_name",
+      "type": "string",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "site_name",
+        "group": null,
+        "hidden": false,
+        "interface": "input",
+        "note": "The wordmark, and the suffix on every page title.",
+        "options": null,
+        "readonly": false,
+        "required": true,
+        "searchable": true,
+        "sort": 2,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "site_name",
+        "table": "site_settings",
+        "data_type": "character varying",
+        "default_value": null,
+        "max_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": false,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "tagline",
+      "type": "string",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "tagline",
+        "group": null,
+        "hidden": false,
+        "interface": "input",
+        "note": "One line. Used as the home page description when nothing else is set.",
+        "options": null,
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 3,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "tagline",
+        "table": "site_settings",
+        "data_type": "character varying",
+        "default_value": null,
+        "max_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "description",
+      "type": "text",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "description",
+        "group": null,
+        "hidden": false,
+        "interface": "input-rich-text-html",
+        "note": "Longer description. Not currently rendered; kept for structured data.",
+        "options": {
+          "toolbar": [
+            "bold",
+            "italic",
+            "underline",
+            "removeformat",
+            "link",
+            "blockquote",
+            "h2",
+            "h3",
+            "h4",
+            "bullist",
+            "numlist",
+            "code",
+            "hr",
+            "table",
+            "fullscreen"
+          ]
+        },
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 4,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "description",
+        "table": "site_settings",
+        "data_type": "text",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "default_seo_title",
+      "type": "string",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "default_seo_title",
+        "group": null,
+        "hidden": false,
+        "interface": "input",
+        "note": "Used when a page sets no seo_title and has no title. Rarely reached, but a page with no title at all is worse than a generic one.",
+        "options": null,
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 5,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "default_seo_title",
+        "table": "site_settings",
+        "data_type": "character varying",
+        "default_value": null,
+        "max_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "default_seo_description",
+      "type": "text",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "default_seo_description",
+        "group": null,
+        "hidden": false,
+        "interface": "input-rich-text-html",
+        "note": "The <meta name=\"description\"> fallback. Around 155 characters is what gets shown.",
+        "options": {
+          "toolbar": [
+            "bold",
+            "italic",
+            "underline",
+            "removeformat",
+            "link",
+            "blockquote",
+            "h2",
+            "h3",
+            "h4",
+            "bullist",
+            "numlist",
+            "code",
+            "hr",
+            "table",
+            "fullscreen"
+          ]
+        },
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 6,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "default_seo_description",
+        "table": "site_settings",
+        "data_type": "text",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "default_og_image",
+      "type": "uuid",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "default_og_image",
+        "group": null,
+        "hidden": false,
+        "interface": "file-image",
+        "note": "The share card image for any page without its own. 1200×630 is the size everything crops to.",
+        "options": null,
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 7,
+        "special": [
+          "file"
+        ],
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "default_og_image",
+        "table": "site_settings",
+        "data_type": "uuid",
+        "default_value": null,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "og_site_name",
+      "type": "string",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "og_site_name",
+        "group": null,
+        "hidden": false,
+        "interface": "input",
+        "note": "og:site_name. Defaults to the site name when empty.",
+        "options": null,
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 8,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "full"
+      },
+      "schema": {
+        "name": "og_site_name",
+        "table": "site_settings",
+        "data_type": "character varying",
+        "default_value": null,
+        "max_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": true,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
+      "collection": "site_settings",
+      "field": "twitter_card",
+      "type": "string",
+      "meta": {
+        "collection": "site_settings",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "twitter_card",
+        "group": null,
+        "hidden": false,
+        "interface": "select-dropdown",
+        "note": null,
+        "options": {
+          "choices": [
+            {
+              "text": "Summary with large image",
+              "value": "summary_large_image"
+            },
+            {
+              "text": "Summary",
+              "value": "summary"
+            }
+          ]
+        },
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 9,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "half"
+      },
+      "schema": {
+        "name": "twitter_card",
+        "table": "site_settings",
+        "data_type": "character varying",
+        "default_value": "summary_large_image",
+        "max_length": 255,
+        "numeric_precision": null,
+        "numeric_scale": null,
         "is_nullable": true,
         "is_unique": false,
         "is_indexed": false,

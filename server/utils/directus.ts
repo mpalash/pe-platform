@@ -1,4 +1,4 @@
-import { createDirectus, rest, staticToken } from '@directus/sdk'
+import { createDirectus, readSingleton, rest, staticToken } from '@directus/sdk'
 import type { DirectusClient, RestClient, StaticTokenClient } from '@directus/sdk'
 
 /**
@@ -67,4 +67,41 @@ export function useDirectus(): PlatformDirectusClient {
 /** Test seam — lets a test force a rebuild against changed config. */
 export function resetDirectusClient(): void {
   client = undefined
+}
+
+/**
+ * Reads a Directus singleton as a plain object.
+ *
+ * `PlatformSchema` maps every collection name to an ARRAY of records, which is
+ * exactly what makes `readItems('pages')` typecheck. `readSingleton` wants the
+ * opposite — a collection whose type is a single object — so under this schema
+ * its parameter narrows to `never` and no collection name can satisfy it.
+ *
+ * The two could be reconciled by declaring each singleton on the schema type,
+ * but an index signature and a named non-array member cannot coexist: the
+ * intersection collapses back to `never`. Properly typed collections are a
+ * generated-types job, and that belongs with the content model rather than
+ * hand-written here.
+ *
+ * So the cast is deliberate and local. It is safe in the way that matters:
+ * Directus returns an object for a singleton read regardless of what the type
+ * parameter claims, and every caller validates the fields it actually uses.
+ *
+ * Returns null when the collection is missing or unreadable — a database that
+ * has had the schema applied but never been opened is a normal state, not an
+ * error, and the site has to render either way.
+ */
+export async function readDirectusSingleton(
+  collection: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const record = await useDirectus().request(
+      readSingleton(collection as never),
+    ) as Record<string, unknown> | null
+
+    return record ?? null
+  }
+  catch {
+    return null
+  }
 }

@@ -602,6 +602,101 @@ async function main(): Promise<void> {
     console.log(`  ~ pages_blocks.item → ${BLOCKS.length} block types`)
   }
 
+  /* ── Singletons ─────────────────────────────────────────────────────────
+   *
+   * Two of them, and the split is deliberate.
+   *
+   * `site_settings` holds identity and the SEO/OG defaults — the values that
+   * answer "what does this page say about itself when the page itself says
+   * nothing". Every content page already has its own seo_title/seo_description;
+   * these are the fallbacks behind them, plus the one share image that most
+   * pages will never override.
+   *
+   * `navigation` holds the nav links. It is separate because it is edited on a
+   * different rhythm and by a different intent: metadata is set once and left,
+   * navigation is rearranged. Folding them together would mean opening the SEO
+   * form to reorder a menu.
+   *
+   * Both are singletons — `meta.singleton: true` — so Directus shows the record
+   * directly rather than a one-row list to click through.
+   */
+  console.log('\nSingletons')
+
+  await ensureCollection('site_settings', {
+    icon: 'settings',
+    singleton: true,
+    note: 'Site identity and the default SEO/OG content used when a page does not set its own.',
+  }, [
+    text('site_name', {
+      required: true,
+      note: 'The wordmark, and the suffix on every page title.',
+    }),
+    text('tagline', { note: 'One line. Used as the home page description when nothing else is set.' }),
+    richtext('description', 'Longer description. Not currently rendered; kept for structured data.'),
+    text('default_seo_title', {
+      note: 'Used when a page sets no seo_title and has no title. Rarely reached, but a page with no title at all is worse than a generic one.',
+    }),
+    richtext('default_seo_description', 'The <meta name="description"> fallback. Around 155 characters is what gets shown.'),
+    {
+      field: 'default_og_image',
+      type: 'uuid',
+      meta: {
+        interface: 'file-image',
+        special: ['file'],
+        note: 'The share card image for any page without its own. 1200×630 is the size everything crops to.',
+      },
+      schema: { is_nullable: true },
+    },
+    text('og_site_name', { note: 'og:site_name. Defaults to the site name when empty.' }),
+    {
+      field: 'twitter_card',
+      type: 'string',
+      meta: {
+        interface: 'select-dropdown',
+        width: 'half',
+        options: {
+          choices: [
+            { text: 'Summary with large image', value: 'summary_large_image' },
+            { text: 'Summary', value: 'summary' },
+          ],
+        },
+      },
+      schema: { is_nullable: true, default_value: 'summary_large_image' },
+    },
+  ])
+
+  await ensureCollection('navigation', {
+    icon: 'menu',
+    singleton: true,
+    note: 'The primary nav. Leave the list empty to fall back to the published page tree.',
+  }, [
+    json('links', {
+      template: '{{ label }}',
+      fields: [
+        { field: 'label', type: 'string', name: 'Label', meta: { interface: 'input', required: true } },
+        {
+          field: 'path',
+          type: 'string',
+          name: 'Path or URL',
+          meta: {
+            interface: 'input',
+            required: true,
+            note: 'A site path like /about, or a full URL for somewhere else.',
+          },
+        },
+        {
+          field: 'external',
+          type: 'boolean',
+          name: 'External link',
+          meta: {
+            interface: 'boolean',
+            note: 'Renders a plain <a> rather than a client-side route. Set this for anything off-site.',
+          },
+        },
+      ],
+    }, 'Order here is the order in the panel. Empty means "use the page tree".'),
+  ])
+
   console.log('\n✓ Content model in place.')
   console.log('  Run `pnpm directus:snapshot` and commit directus/migrations/schema.json.\n')
 }

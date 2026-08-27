@@ -39,7 +39,7 @@ useSeoMeta({
 /** Suggestions, not a sitemap. Four is enough to be useful. */
 const elsewhere = [
   { to: '/', label: 'Home' },
-  { to: '/archive', label: 'The Doomscroll Archive' },
+  { to: '/archive', label: 'The Archive' },
   { to: '/about', label: 'About the project' },
   { to: '/faqs', label: 'Frequently asked questions' },
 ]
@@ -78,7 +78,7 @@ async function goBack(): Promise<void> {
           class="error-page__mark"
           @click.prevent="leave('/')"
         >
-          pe—platform
+          purgatory EDIT
         </a>
       </Center>
     </header>

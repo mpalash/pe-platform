@@ -48,6 +48,29 @@ const binModel = computed({
   set: (range: [number, number] | null) => archive.setBinRange(range),
 })
 
+/**
+ * The toolbar floats over the archive rather than sitting above it, for the
+ * same reason the site header does: the grid and galaxy are views of the whole
+ * archive and a bar across the top crops them. Floating means it can be in the
+ * way, so it can also be moved.
+ *
+ * It opens at the bottom-left. Top-left is the site header's corner, and the
+ * two panels overlapping on first load would look like a bug rather than a
+ * layout. The y is resolved on the client because it depends on the window
+ * height, which the server does not have — `useDraggable` re-clamps on mount,
+ * so an approximate value here is corrected before it is ever painted.
+ */
+const { panel, style, handleProps, dragging, reclamp } = useDraggable({
+  id: 'archive-toolbar',
+  initial: { x: 24, y: 420 },
+})
+
+const collapsed = usePersistentState('archive:toolbarCollapsed', () => false)
+
+// Collapsing changes the panel height, which can leave it hanging off the
+// bottom of the window. Re-clamp once the new height exists.
+watch(collapsed, () => nextTick(reclamp))
+
 const countLabel = computed(() => {
   const shown = count.value.toLocaleString()
   return hasActiveFilters.value
@@ -57,8 +80,53 @@ const countLabel = computed(() => {
 </script>
 
 <template>
-  <div class="toolbar">
-    <Center measure="full">
+  <div
+    ref="panel"
+    class="toolbar"
+    :class="{ 'toolbar--dragging': dragging }"
+    :style="style"
+  >
+    <div class="toolbar__head">
+      <button
+        type="button"
+        class="toolbar__handle"
+        aria-label="Move the filter panel. Use the arrow keys to reposition, Home to reset."
+        v-bind="handleProps"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="12"
+          height="12"
+          aria-hidden="true"
+        >
+          <g fill="currentColor">
+            <circle cx="6" cy="4" r="1" />
+            <circle cx="10" cy="4" r="1" />
+            <circle cx="6" cy="8" r="1" />
+            <circle cx="10" cy="8" r="1" />
+            <circle cx="6" cy="12" r="1" />
+            <circle cx="10" cy="12" r="1" />
+          </g>
+        </svg>
+        <span>Filters</span>
+      </button>
+
+      <button
+        type="button"
+        class="toolbar__collapse"
+        :aria-expanded="!collapsed"
+        aria-controls="archive-filters"
+        @click="collapsed = !collapsed"
+      >
+        {{ collapsed ? 'Show' : 'Hide' }}
+        <span class="visually-hidden"> the filter controls</span>
+      </button>
+    </div>
+
+    <div
+      v-show="!collapsed"
+      id="archive-filters"
+    >
       <div class="toolbar__inner">
         <!-- Search -->
         <div class="toolbar__search">
@@ -193,64 +261,104 @@ const countLabel = computed(() => {
           </button>
         </div>
       </div>
-    </Center>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/*
+ * A floating column, not a bar.
+ *
+ * Every control stacks vertically inside a fixed 240px, which is what makes
+ * the panel readable at a glance and keeps it narrow enough to sit beside the
+ * archive rather than over it. The old horizontal bar had to fight to stay on
+ * one row — a fixed-width column has no row to overflow, so the whole
+ * nowrap/scroll apparatus is gone.
+ */
 .toolbar {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 10;
-  border-block-end: 1px solid var(--rule);
-  /* Opaque, not translucent: video scrolls underneath it. */
-  background: var(--surface);
-  padding-block: var(--space-s);
+  position: fixed;
+  z-index: 30;
+  /* 240px, as specified — and `inline-size` too, not just a max, so the panel
+     does not resize as the clip count changes length underneath it. */
+  inline-size: 15rem;
+  max-inline-size: 15rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+
+  padding: var(--space-s);
+  border: 1px solid var(--rule);
+  /* Translucent with a blur: video and the galaxy pass underneath, and an
+     opaque slab this size would block too much of them. */
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+
+  /* The panel is taller than a phone once every filter is open. */
+  max-block-size: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.toolbar--dragging {
+  border-color: var(--rule-strong);
+  user-select: none;
+}
+
+.toolbar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+}
+
+.toolbar__handle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0;
+  cursor: grab;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  touch-action: none; /* or the browser scrolls instead of dragging */
+}
+
+.toolbar--dragging .toolbar__handle {
+  cursor: grabbing;
+}
+
+.toolbar__handle:hover {
+  color: var(--ink-muted);
+}
+
+.toolbar__collapse {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.toolbar__collapse:hover {
+  color: var(--accent);
 }
 
 .toolbar__inner {
   display: flex;
-  /*
-   * One row, always.
-   *
-   * Wrapping made the bar jump between one and two rows as its contents
-   * changed width — the clear button appearing, the count going from "30,651
-   * clips" to "3,980 of 30,651 clips" — which read as the search field
-   * randomly expanding. When there is genuinely not enough room the row
-   * scrolls sideways instead of reflowing the page under the reader.
-   */
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  gap: var(--space-l);
-  align-items: center;
-  /* Room for the focus ring on the first and last controls, which would
-     otherwise be clipped by the scroll container. */
-  padding-inline: 2px;
-  scrollbar-width: none;
+  flex-direction: column;
+  gap: var(--space-m);
+  /* Room for focus rings, which a tight container clips. */
+  padding: 2px;
 }
 
-.toolbar__inner::-webkit-scrollbar {
-  display: none;
-}
-
-/* Nothing in the bar may wrap internally or the row grows taller. */
+/* Controls fill the column rather than sizing to their content. */
 .toolbar__inner > * {
-  flex: none;
+  inline-size: 100%;
 }
 
 .toolbar__search {
   position: relative;
-  /*
-   * Fixed width — neither grows nor shrinks.
-   *
-   * Anything elastic here resizes as you type, because the result count beside
-   * it changes length ("30,651 clips" → "3,980 of 30,651 clips") and the flex
-   * line redistributes. That is what read as the field randomly expanding. If
-   * the row runs out of room it scrolls; the search box stays put.
-   */
-  flex: 0 0 auto;
-  inline-size: min(20rem, 40vw);
 }
 
 .toolbar__input {
@@ -287,14 +395,15 @@ const countLabel = computed(() => {
 
 .toolbar__toggles {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
   gap: var(--space-2xs);
 }
 
 .toolbar__toggle {
-  display: inline-flex;
+  display: flex;
   gap: var(--space-2xs);
   align-items: center;
+  inline-size: 100%;
   border: 1px solid var(--rule);
   background: var(--surface-raised);
   padding: var(--space-2xs) var(--space-s);
@@ -317,14 +426,17 @@ const countLabel = computed(() => {
   border-color: var(--accent);
 }
 
+/* Three equal segments across the column, so it reads as one control. */
 .toolbar__views {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
 }
 
 .toolbar__view {
   border: 1px solid var(--rule);
-  padding: var(--space-2xs) var(--space-s);
+  padding: var(--space-2xs) var(--space-2xs);
+  text-align: center;
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
@@ -344,15 +456,10 @@ const countLabel = computed(() => {
   border-color: var(--accent);
 }
 
-/* Fixed width so the row does not shift when the count changes length. */
 .toolbar__count {
-  margin-inline-start: auto;
-  min-inline-size: 11rem;
-  text-align: end;
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--ink-faint);
-  white-space: nowrap;
 }
 </style>

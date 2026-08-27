@@ -5,9 +5,11 @@ import {
   Color,
   Euler,
   FogExp2,
+  Frustum,
   InstancedBufferAttribute,
   InstancedMesh,
   LinearFilter,
+  Matrix4,
   NoColorSpace,
   Object3D,
   PerspectiveCamera,
@@ -85,24 +87,31 @@ const SCENE_CFG = {
 
 const GLOW = { haloScale: 3.4, haloOpacity: 0.35, rectEmissiveBoost: 1.15 }
 
-/**
- * Bin colours run cool (peace) to warm (war). Read from the design tokens
- * where they exist so the galaxy cannot drift from the rest of the site.
+/*
+ * Bin colours come from shared/utils/archive.ts. They used to be declared here,
+ * which meant the galaxy and the toolbar's intensity scale each had their own
+ * copy of the same ramp — two renderings of one axis, free to drift apart.
  */
-const BIN_FALLBACK: Record<string, string> = {
-  'Peace-05': '#6fb7c9', 'Peace-04': '#7cc0bd', 'Peace-03': '#8bc9ab',
-  'Peace-02': '#9ccf96', 'Peace-01': '#b3d489',
-  'War-01': '#d8cf7e', 'War-02': '#e3b778', 'War-03': '#e0a06a',
-  'War-04': '#db885f', 'War-05': '#d47156', 'War-06': '#cb5b4f',
-  'War-07': '#bf474b', 'War-08': '#b03647', 'War-09': '#9c2842', 'War-10': '#851d3c',
-}
+const BIN_FALLBACK = BIN_COLORS
 const UNBINNED_COLOR = '#3d3d43'
 
 /* ── atlas ─────────────────────────────────────────────────────────────── */
 
-const ATLAS_COLS = 8
-const ATLAS_SLOTS = ATLAS_COLS * ATLAS_COLS
-const ATLAS_CELL_PX = 128
+/*
+ * Cells are 16:9, not square, because the source thumbnails are. Squaring them
+ * meant every tile was centre-cropped to a third of its width before it ever
+ * reached the shader.
+ *
+ * 2048 / 128 = 16 columns, 2048 / 72 = 28 rows — 448 slots against the 64 this
+ * had. The slot count is the ceiling on how many thumbnails can be on screen at
+ * once, so 64 was itself a large part of "only a few show up".
+ */
+const ATLAS_SIZE_PX = 2048
+const ATLAS_CELL_W = 128
+const ATLAS_CELL_H = 72
+const ATLAS_COLS = Math.floor(ATLAS_SIZE_PX / ATLAS_CELL_W)
+const ATLAS_ROWS = Math.floor(ATLAS_SIZE_PX / ATLAS_CELL_H)
+const ATLAS_SLOTS = ATLAS_COLS * ATLAS_ROWS
 
 /* ── controls, exposed to the UI ───────────────────────────────────────── */
 
@@ -295,12 +304,33 @@ const freeSlots: number[] = []
 const inFlight = new Set<string>()
 
 /*
- * Starting distance sits inside the thumbnail/pick band rather than outside it.
- * At 220 with the default depth of 120, every tile is beyond the pick cutoff —
- * the galaxy renders beautifully and does not respond to a single click, which
- * reads as broken rather than as "zoom in first".
+ * The camera flies in, and where it comes to REST is load-bearing.
+ *
+ * This is the whole galaxy-thumbnail bug. The galaxy has radius 150, and the
+ * camera used to sit at a fixed 170 — outside it. The nearest tile was then
+ * ~123 world units away, while the shader only fades a thumbnail in within
+ * `uThumbDist` of the camera (35 by default). `near` was therefore 0 for every
+ * tile on screen, so every thumbnail was multiplied out to nothing.
+ *
+ * The textures were loading correctly the entire time; they were being drawn
+ * with zero opacity. That is why nothing looked like it was happening and why
+ * fixing the loading code repeatedly changed nothing.
+ *
+ * pe-vue rests at 55, inside the disc, which is what puts tiles within the
+ * band. Same radius, same shader, so the same number is right here.
+ *
+ * The existing easing in render() turns the gap between `distance` and
+ * `targetDistance` into the fly-in for free — no extra animation code.
  */
-const rig = { distance: 170, targetDistance: 170, theta: 0.6, phi: 1.15 }
+const CAM_REST_DISTANCE = 55
+const CAM_INTRO_DISTANCE = 340
+
+const rig = {
+  distance: CAM_INTRO_DISTANCE,
+  targetDistance: CAM_REST_DISTANCE,
+  theta: 0.6,
+  phi: 1.15,
+}
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
 
@@ -384,8 +414,8 @@ function buildGalaxy(cap: number): void {
   const haloGeo = new PlaneGeometry(baseW * GLOW.haloScale, baseH * GLOW.haloScale)
 
   atlasCanvas = document.createElement('canvas')
-  atlasCanvas.width = ATLAS_COLS * ATLAS_CELL_PX
-  atlasCanvas.height = ATLAS_COLS * ATLAS_CELL_PX
+  atlasCanvas.width = ATLAS_SIZE_PX
+  atlasCanvas.height = ATLAS_SIZE_PX
 
   atlasTexture = new CanvasTexture(atlasCanvas)
   atlasTexture.minFilter = LinearFilter
@@ -411,7 +441,7 @@ function buildGalaxy(cap: number): void {
     uniforms: {
       ...shared(),
       uAtlas: { value: atlasTexture },
-      uAtlasCell: { value: [1 / ATLAS_COLS, 1 / ATLAS_COLS] },
+      uAtlasCell: { value: [ATLAS_CELL_W / ATLAS_SIZE_PX, ATLAS_CELL_H / ATLAS_SIZE_PX] },
       uThumbDist: { value: depthRange.value },
       uNearScale: { value: 3.2 },
       uUseThumbs: { value: 1 },
@@ -563,8 +593,8 @@ function slotUv(slot: number): { u: number, v: number } {
   const row = Math.floor(slot / ATLAS_COLS)
 
   return {
-    u: col / ATLAS_COLS,
-    v: 1 - (row + 1) / ATLAS_COLS,
+    u: (col * ATLAS_CELL_W) / ATLAS_SIZE_PX,
+    v: 1 - ((row + 1) * ATLAS_CELL_H) / ATLAS_SIZE_PX,
   }
 }
 
@@ -576,16 +606,31 @@ function drawToAtlas(image: HTMLImageElement, slot: number): void {
 
   const col = slot % ATLAS_COLS
   const row = Math.floor(slot / ATLAS_COLS)
-  const x = col * ATLAS_CELL_PX
-  const y = row * ATLAS_CELL_PX
+  const x = col * ATLAS_CELL_W
+  const y = row * ATLAS_CELL_H
 
-  ctx.clearRect(x, y, ATLAS_CELL_PX, ATLAS_CELL_PX)
+  ctx.clearRect(x, y, ATLAS_CELL_W, ATLAS_CELL_H)
 
-  // Cover-fit into the square cell.
-  const scale = Math.max(ATLAS_CELL_PX / image.width, ATLAS_CELL_PX / image.height)
-  const w = image.width * scale
-  const h = image.height * scale
-  ctx.drawImage(image, x + (ATLAS_CELL_PX - w) / 2, y + (ATLAS_CELL_PX - h) / 2, w, h)
+  // Cover-crop the source into the cell, cropping the source rather than
+  // scaling the destination so the cell is filled exactly.
+  const cellAspect = ATLAS_CELL_W / ATLAS_CELL_H
+  const srcAspect = image.width / image.height
+
+  let sx = 0
+  let sy = 0
+  let sw = image.width
+  let sh = image.height
+
+  if (srcAspect > cellAspect) {
+    sw = image.height * cellAspect
+    sx = (image.width - sw) / 2
+  }
+  else {
+    sh = image.width / cellAspect
+    sy = (image.height - sh) / 2
+  }
+
+  ctx.drawImage(image, sx, sy, sw, sh, x, y, ATLAS_CELL_W, ATLAS_CELL_H)
 
   atlasTexture.needsUpdate = true
 }
@@ -633,32 +678,28 @@ function assignSlot(id: string, index: number): void {
 }
 
 const scanPos = new Vector3()
+const scanFrustum = new Frustum()
+const scanMatrix = new Matrix4()
 
 /**
- * Give the atlas slots to whatever is nearest the camera.
+ * Hand the atlas slots to the tiles nearest the camera that are actually on
+ * screen and within thumbnail range.
  *
- * Scans a slice of the instances each call rather than all 30,000 — a full
- * pass every frame would cost more than the rendering does.
- */
-/**
- * Give the atlas slots to the tiles genuinely nearest the camera.
+ * Three constraints, and all three matter:
  *
- * The previous version scanned a rolling 600 of 30,000 instances per frame and
- * claimed a slot for anything within range that it happened to see. A given
- * near tile was therefore only considered once every fifty frames, and the 64
- * slots went to whichever near tiles fell inside the current window rather than
- * to the closest ones — so a handful of thumbnails appeared, in no particular
- * place, and changed arbitrarily as you moved. That is the "only a few show up"
- * behaviour.
+ *   - `depthRange` — the same threshold the shader fades on. Loading a texture
+ *     the shader will multiply to zero wastes a slot and a request.
+ *   - the view frustum — a tile behind you is never seen, so a slot spent on it
+ *     is a slot a visible tile does not get. This is what "only the ones facing
+ *     the viewer" needs.
+ *   - distance order — when more tiles qualify than there are slots, the
+ *     nearest ones win, because those are the ones rendered most opaquely.
  *
- * Now: rank every candidate by distance and hand the slots to the top 64.
- * Tiles this close are also the ones the vertex shader billboards toward the
- * camera, so "nearest" and "facing you" are the same set by construction.
- *
- * A full scan is ~30k distance computations. That is a millisecond or so, which
- * is why it runs a few times a second rather than every frame.
+ * Released on a wider radius than they are acquired (`keepDist`), so a tile
+ * hovering at the boundary does not thrash its slot every scan.
  */
 const RESCAN_INTERVAL_MS = 250
+const KEEP_MARGIN = 1.25
 
 let lastScan = 0
 
@@ -673,37 +714,39 @@ function updateThumbnails(now: number): void {
   if (now - lastScan < RESCAN_INTERVAL_MS) return
   lastScan = now
 
+  const maxDist = depthRange.value
+  const keepDist = maxDist * KEEP_MARGIN
+
   /*
-   * Rank EVERY tile by distance and take the nearest 64 — no distance cutoff.
-   *
-   * Filtering by `depthRange` first was wrong in a way worth recording: the
-   * depth slider controls how close a tile must be to be *displayed* as a
-   * thumbnail, and the shader already enforces that. Using it to decide what to
-   * *load* meant that whenever nothing happened to be inside that radius —
-   * during the intro expansion, or at any camera distance with the depth set
-   * low, which is now the default — the atlas stayed completely empty.
-   *
-   * Loading the nearest tiles unconditionally also means the texture is already
-   * there when one drifts into range, instead of fading in a second late.
+   * `Frustum.setFromProjectionMatrix` needs the camera's world matrix to be
+   * current. render() refreshes it, but this runs before that call, so a stale
+   * matrix here would cull against the previous frame's view.
    */
+  camera.updateMatrixWorld()
+  scanMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+  scanFrustum.setFromProjectionMatrix(scanMatrix)
+
   const candidates: Array<{ id: string, index: number, distance: number }> = []
+  const keep = new Set<string>()
 
   for (let i = 0; i < displayedCount; i++) {
     const id = displayedIds[i]
     if (!id) continue
 
     worldPosition(i, elapsed, scanPos)
-    candidates.push({ id, index: i, distance: scanPos.distanceTo(camera.position) })
+    const distance = scanPos.distanceTo(camera.position)
+
+    if (distance >= keepDist || !scanFrustum.containsPoint(scanPos)) continue
+
+    keep.add(id)
+    if (distance < maxDist) candidates.push({ id, index: i, distance })
   }
 
   candidates.sort((a, b) => a.distance - b.distance)
-  const wanted = candidates.slice(0, ATLAS_SLOTS)
-  const wantedIds = new Set(wanted.map(entry => entry.id))
 
-  // Release anything that is no longer in the nearest set, freeing its slot
-  // before the assignments below ask for one.
+  // Release first, so the slots freed here are available to the loop below.
   for (const [id, slot] of [...slotOfId]) {
-    if (wantedIds.has(id)) continue
+    if (keep.has(id)) continue
 
     slotOfId.delete(id)
     idOfSlot.delete(slot)
@@ -716,10 +759,12 @@ function updateThumbnails(now: number): void {
     }
   }
 
-  for (const entry of wanted) {
+  for (const entry of candidates) {
+    if (freeSlots.length === 0) break
+
     if (slotOfId.has(entry.id)) {
-      // Already has a slot, but its instance index may have moved with a
-      // filter change — keep the attribute pointing at the right tile.
+      // Already loaded, but a filter change may have moved it to a different
+      // instance index — keep the attribute pointing at the right tile.
       const slot = slotOfId.get(entry.id)!
       const { u, v } = slotUv(slot)
       atlasArr[entry.index * 2] = u

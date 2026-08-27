@@ -62,7 +62,16 @@
   /* ─── Measure ──────────────────────────────────────────────────────────── */
   /* ~66 characters. Editorial pages carry real prose and this is the single
      most consequential number for whether it is readable. */
-  --measure: 34rem;
+  /*
+   * 640px. Wider than the ~66-character ideal for pure prose, and chosen
+   * anyway: this is the width of a content BLOCK, and blocks carry images,
+   * pull quotes and people grids as well as paragraphs. Sizing to the
+   * narrowest thing in the set would starve everything else.
+   *
+   * It is a max, not a width — `.center` and `.prose` both stay at 100% below
+   * it, so narrow screens get the full column minus the gutter.
+   */
+  --measure: 40rem;
   --measure-wide: 48rem; /* for text that sits beside media */
   --measure-narrow: 26rem; /* pull quotes, captions */
 }
