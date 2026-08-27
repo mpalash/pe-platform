@@ -270,30 +270,79 @@ const PAGES: PageSpec[] = [
     summary: 'Software development, the six performance metrics, and the bin categorisation index.',
     blocks: [
       richtext(
-        '<p><em>purgatory</em> <strong>EDIT</strong> uses the Emotiv Epoc X, a portable EEG kit '
+        '<p><em>purgatory</em> <strong>EDIT</strong> uses the Emotiv EPOC X, a portable EEG kit '
         + 'widely used in academic and scientific research to read brainwave activity as emotions. '
-        + 'Its Brain Control Interface broadcasts these as OSC signals on a secure channel.</p>'
-        + '<p>Proprietary software developed by the team on top of a licensed VDMX5 receives the '
-        + 'broadcast signal and translates those emotional mind-states into parameters linked to '
-        + 'the intensity map values.</p>',
+        + 'It reads emotional states as well as specific eye and facial expressions, and its Brain '
+        + 'Control Interface broadcasts these as OSC signals on a secure channel.</p>'
+        + '<p>The proprietary software, developed by the <a href="/about#team"><em>purgatory</em> '
+        + '<strong>EDIT</strong> team</a> on top of a licensed VDMX5, receives the broadcast signal '
+        + 'and translates those emotional mind-states into usable parameters linked to the '
+        + 'intensity map values.</p>',
         { title: 'Software development', anchor: 'software-dev' },
       ),
       richtext(
-        '<p>The brainware reads a user\'s semi-conscious mind-state and outputs it as six '
-        + 'metrics:</p>'
+        '<p>The brainware reads a user\'s semi-conscious mind-state and outputs it as abstract '
+        + 'emotions represented as six metrics. These performance metrics are the six parameters '
+        + 'that generate the methodology.</p>'
         + '<dl>'
-        + '<dt>Focus</dt><dd>Fixed attention to one specific task. Measures both the depth of '
-        + 'attention and how often attention switches between tasks.</dd>'
-        + '<dt>Engagement</dt><dd>Alertness and the conscious direction of attention towards '
-        + 'task-relevant stimuli. Contrasts with boredom.</dd>'
-        + '<dt>Interest</dt><dd>The degree of attraction or aversion to the current stimuli.</dd>'
-        + '<dt>Excitement</dt><dd>Physiological arousal — activation in the sympathetic nervous '
-        + 'system, reflected over periods as short as several seconds.</dd>'
-        + '<dt>Stress</dt><dd>A measure of comfort with the current challenge.</dd>'
-        + '<dt>Relaxation</dt><dd>The ability to switch off and recover from intense '
-        + 'concentration.</dd>'
-        + '</dl>',
+        + '<dt>Focus</dt><dd>A measure of fixed attention to one specific task. Measures the depth '
+        + 'of attention as well as the frequency that attention switches between tasks. A high '
+        + 'level of task switching indicates poor focus and distraction.</dd>'
+        + '<dt>Engagement</dt><dd>Experienced as alertness and the conscious direction of attention '
+        + 'towards task-relevant stimuli. Measures the level of immersion in the moment — a mixture '
+        + 'of attention and concentration, contrasting with boredom.</dd>'
+        + '<dt>Interest</dt><dd>The degree of attraction or aversion to the current stimuli, '
+        + 'environment or activity. Low interest indicates a strong aversion to the task, high '
+        + 'interest a strong affinity with it.</dd>'
+        + '<dt>Excitement</dt><dd>Physiological arousal, characterised by activation in the '
+        + 'sympathetic nervous system resulting in a range of physiological responses. Reflects '
+        + 'short-term changes over periods as short as several seconds.</dd>'
+        + '<dt>Stress</dt><dd>A measure of comfort with the current challenge. High stress can '
+        + 'result from an inability to complete a difficult task, feeling overwhelmed, and fearing '
+        + 'negative consequences for failing to satisfy the task requirements.</dd>'
+        + '<dt>Relaxation</dt><dd>A measure of an ability to switch off and recover from intense '
+        + 'concentration. Trained meditators can score extremely high relaxation scores.</dd>'
+        + '</dl>'
+        + '<p><small>The performance metric definitions are Emotiv\u2019s, as documented for the '
+        + 'EPOC X.</small></p>',
         { title: 'The six metrics', anchor: 'metrics' },
+      ),
+      richtext(
+        '<p>The software generates an \u2018algorithm-based real-time stitching\u2019 of a string '
+        + 'of videos drawn from the archive. Through it and the EPOC X brainware, a '
+        + 'participant\u2019s emotional activity controls the real-time juxtaposition of a '
+        + 'pre-compiled and curated string of videos — their sequencing, their intensities and the '
+        + 'specific types of video, as well as playback speed, fluctuations, and designed '
+        + 'glitches.</p>'
+        + '<p>Together the software and the EPOC X work as a fuzzy controller: they perform the '
+        + 'visual semiotic analysis research and execute the artistic component of the project.</p>',
+        { title: 'Real-time stitching', anchor: 'stitching' },
+      ),
+      richtext(
+        '<p>That the device is difficult to control with precision is not a limitation of the '
+        + 'work — it is the material of it. It gives participants varying degrees of looseness and '
+        + 'an ability to \u2018play\u2019 with the process. As they struggle for a degree of '
+        + 'control, trying to will their subconscious into producing specific sequences, attempts '
+        + 'to soothe or agitate their own minds often have unexpected results.</p>'
+        + '<ul>'
+        + '<li><strong>Stress</strong> controls the intensity of videos: high stress sequences more '
+        + 'peaceful clips, low stress sequences more violent ones.</li>'
+        + '<li><strong>Interest</strong>, <strong>engagement</strong> and <strong>focus</strong> '
+        + 'control sequencing in different ways, from switching the polarity of the intensity '
+        + 'slider to shifting bin values and transition speeds.</li>'
+        + '<li><strong>Squinting</strong> causes blurring; <strong>clenching the jaw</strong> '
+        + 'temporarily pauses the sequence; <strong>blinking</strong> ruptures the war-and-peace '
+        + 'binary altogether by toggling in advertisements and Kanye West music videos — another '
+        + 'form of violence.</li>'
+        + '</ul>',
+        { title: 'Playing with the process', anchor: 'play' },
+      ),
+      richtext(
+        '<p>Every clip in the archive is graded on a fifteen-step scale running from Peace-05 to '
+        + 'War-10. The full categorisation index — what each bin means and the criteria a clip is '
+        + 'judged against — is published as a PDF.</p>'
+        + '<p><a href="/docs/pe-bin-categorisation.pdf">Bin categorisation index (PDF, 2.7MB)</a></p>',
+        { title: 'Bin categorisation index', anchor: 'bins' },
       ),
     ],
   },

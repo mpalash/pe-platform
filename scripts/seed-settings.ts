@@ -70,15 +70,21 @@ const SITE_SETTINGS: Record<string, unknown> = {
 }
 
 /**
- * Deliberately mirrors what the page tree produces today. The point of seeding
- * it is not to change the nav — it is to move authorship into Directus so the
- * next change does not need a deploy.
+ * Paths are checked against the real routes, not guessed from the labels. Two
+ * of these were wrong on the first pass — /research-logs and /faq, where the
+ * pages are /research and /faqs — and a nav link to a 404 is the kind of thing
+ * that survives a long time because the label looks right.
+ *
+ * /archive and /source-index are application routes rather than Directus
+ * pages, so they will never appear in the page tree the fallback walks; they
+ * have to be named here.
  */
 const NAV_LINKS = [
   { label: 'Archive', path: '/archive', external: false },
+  { label: 'Source Index', path: '/source-index', external: false },
   { label: 'About', path: '/about', external: false },
-  { label: 'Research logs', path: '/research-logs', external: false },
-  { label: 'Frequently asked questions', path: '/faq', external: false },
+  { label: 'Research logs', path: '/research', external: false },
+  { label: 'Frequently asked questions', path: '/faqs', external: false },
   { label: 'Disclaimers', path: '/disclaimers', external: false },
 ]
 

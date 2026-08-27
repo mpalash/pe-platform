@@ -247,3 +247,36 @@ describe('shaping the real export', () => {
     expect([...offScale].sort()).toEqual(['INT', 'Overlay/ Misc'])
   })
 })
+
+describe('source index artefact', () => {
+  /**
+   * The source index is derived at build time into server/assets/sources.json
+   * and committed, so that the page can render on the server without shipping
+   * the 18MB archive to the browser. If it drifts from the dataset, the page
+   * quietly serves a stale bibliography — which is the one thing an
+   * attributions list must not do.
+   */
+  it('matches what collectSources produces from the dataset', () => {
+    const records = JSON.parse(
+      readFileSync(resolve(repoRoot, 'public/data/edits.json'), 'utf8'),
+    ) as RawEdit[]
+
+    const built = JSON.parse(
+      readFileSync(resolve(repoRoot, 'server/assets/sources.json'), 'utf8'),
+    ) as Array<{ srcName: string }>
+
+    expect(built).toHaveLength(collectSources(records).length)
+  })
+
+  it('is sorted alphabetically, so it can be used as an index', () => {
+    const built = JSON.parse(
+      readFileSync(resolve(repoRoot, 'server/assets/sources.json'), 'utf8'),
+    ) as Array<{ srcName: string }>
+
+    const sorted = [...built].sort((a, b) =>
+      a.srcName.localeCompare(b.srcName, 'en', { sensitivity: 'base' }),
+    )
+
+    expect(built.map(s => s.srcName)).toEqual(sorted.map(s => s.srcName))
+  })
+})

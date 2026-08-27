@@ -57,80 +57,9 @@ useSeoMeta({
 </template>
 
 <style scoped>
-/*
- * The border wraps the CONTENT, not the window.
- *
- * It used to be a frame inset 24px from every edge — which is a frame around
- * the viewport, and on a wide screen that put a rule a thousand pixels away
- * from the text it was supposedly enclosing. A border that far from what it
- * contains reads as chrome, not as a boundary.
- *
- * So it hugs the measure instead: 640px of content plus `--page-pad` of
- * breathing room on each side, centred, sized to its content vertically. The
- * offset is what makes it a wrapper rather than an outline — tight to the text
- * and the border becomes a box the words are crammed into.
- */
-.content-page {
-  /* The gap between the border and the content it wraps. */
-  --page-pad: var(--space-xl);
-  /* Minimum clearance from the window, matching the floating panels. */
-  --page-gap: 24px;
-
-  box-sizing: border-box;
-  inline-size: calc(100% - var(--page-gap) * 2);
-  max-inline-size: calc(var(--measure) + var(--page-pad) * 2);
-  margin: var(--page-gap) auto;
-
-  border: 1px solid var(--rule);
-  background: var(--surface);
-  padding: var(--page-pad);
-}
-
-/*
- * The wrapper supplies the horizontal breathing room, so the Centers inside
- * must not add a gutter on top of it — otherwise every block is inset twice
- * and the 640px measure never actually reaches 640px.
- */
-.content-page :deep(.center) {
-  --center-gutter: 0px;
-}
-
-/*
- * Full-bleed blocks bleed to the border, not to the window.
- *
- * Now that the border hugs the content, `.bleed` pulling out to 100dvw would
- * send a marquee straight through it and off both sides of the screen. Inside
- * the wrapper, "full width" means the padding — one negative margin, no
- * viewport arithmetic needed.
- */
-.content-page :deep(.bleed) {
-  inline-size: auto;
-  max-inline-size: none;
-  margin-inline: calc(var(--page-pad) * -1);
-}
-
-/*
- * Clearance for the floating header, which opens at the top-left corner. On a
- * wide window the wrapper is centred and nowhere near it; below that the two
- * overlap, and the first line of the page would start underneath the panel.
- */
-@media (width < 60rem) {
-  .content-page {
-    padding-block-start: var(--space-4xl);
-  }
-}
-
-/*
- * On a phone the offset costs more than it gives — 36px a side out of a 375px
- * window is most of the width — so it shrinks rather than the border going
- * away. The page still reads as a wrapped sheet.
- */
-@media (width < 34rem) {
-  .content-page {
-    --page-pad: var(--space-m);
-    --page-gap: 8px;
-  }
-}
+/* The `.content-page` wrapper itself is styled globally in primitives.css —
+   /source-index is a Nuxt route rather than a Directus page and needs the same
+   frame, and a scoped rule here could not reach it. */
 
 .page-header {
   padding-block-end: var(--space-xl);

@@ -38,6 +38,8 @@ pnpm directus:apply        # apply committed schema to local Directus
 pnpm directus:model        # create/patch collections (idempotent)
 pnpm directus:seed-settings # fill the site_settings + navigation singletons
 pnpm directus:prune        # report orphaned block items (--delete to remove)
+pnpm seed:pages            # seed the editorial pages and their blocks
+pnpm archive:sources       # rebuild server/assets/sources.json (runs on build)
 ```
 
 Mailpit web UI: http://localhost:8025 — this is where sign-in links arrive in development.
@@ -134,7 +136,30 @@ docs/plan/
 16. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
+## Content sources
+
+Editorial copy is ported from `../pe-vue/src/md/*.md`. That IS the live site —
+`www.purgatoryedit.com` is a CNAME to `pe-vue.netlify.app` — so the markdown is
+authoritative and the deployed site is not a second source to reconcile against.
+`scripts/seed-pages.ts` is where it lands.
+
+Two pages are routes, not Directus pages, because their content is the dataset
+rather than something anyone authors: `/archive` and `/source-index`. They will
+never appear in the page tree, so the nav fallback cannot find them and they
+have to be named in `scripts/seed-settings.ts`.
+
 ## Gotchas worth not rediscovering
+
+- **Nitro cannot read `public/` server-side in dev.** It is served by Vite there
+  and from `.output/public` in a build, and `$fetch('/data/x.json')` 404s on the
+  server in development. Anything the server needs to read goes in
+  `server/assets/` and comes back through `useStorage('assets:server')`.
+
+- **`srcName` in the archive data is noisy.** 1,282 distinct values, but some
+  works appear several times with per-clip identifiers in the name (numeric
+  suffixes, raw filenames, bare numbers). The archive page's "around 800
+  sources" and the source index's 1,282 are both defensible; do not print a
+  total in prose next to the list without reconciling them.
 
 - **The galaxy's camera distance gates the thumbnails.** The vertex shader fades
   a thumbnail in only within `uThumbDist` (the depth slider) of the camera. The
