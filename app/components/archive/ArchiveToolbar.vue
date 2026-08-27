@@ -71,6 +71,17 @@ const collapsed = usePersistentState('archive:toolbarCollapsed', () => false)
 // bottom of the window. Re-clamp once the new height exists.
 watch(collapsed, () => nextTick(reclamp))
 
+/*
+ * The galaxy's controls live here rather than on the canvas.
+ *
+ * They are filters on what the archive shows, in the same sense the intensity
+ * scale is, and having two separate control surfaces on the same screen — one
+ * floating panel and one bar welded to the bottom of the canvas — made the
+ * archive feel like two applications. Shown only for the galaxy, because that
+ * is the only view they mean anything in.
+ */
+const galaxy = useGalaxyControls()
+
 const countLabel = computed(() => {
   const shown = count.value.toLocaleString()
   return hasActiveFilters.value
@@ -240,6 +251,58 @@ const countLabel = computed(() => {
         >
           {{ countLabel }}
         </p>
+
+        <!-- Galaxy-only display controls. `v-if` rather than `v-show`: the
+             galaxy is unmounted in the other views, so these would be
+             adjusting nothing. -->
+        <div
+          v-if="view === 'galaxy'"
+          class="toolbar__galaxy"
+        >
+          <div class="toolbar__toggles">
+            <button
+              type="button"
+              class="toolbar__toggle"
+              :class="{ 'toolbar__toggle--on': galaxy.paused.value }"
+              :aria-pressed="galaxy.paused.value"
+              @click="galaxy.paused.value = !galaxy.paused.value"
+            >
+              {{ galaxy.paused.value ? 'Play' : 'Pause' }}
+            </button>
+
+            <button
+              type="button"
+              class="toolbar__toggle"
+              :class="{ 'toolbar__toggle--on': galaxy.thumbnails.value }"
+              :aria-pressed="galaxy.thumbnails.value"
+              @click="galaxy.thumbnails.value = !galaxy.thumbnails.value"
+            >
+              Thumbnails
+            </button>
+          </div>
+
+          <label class="toolbar__slider">
+            <span>Depth <em>{{ galaxy.depthRange.value }}</em></span>
+            <input
+              v-model.number="galaxy.depthRange.value"
+              type="range"
+              min="20"
+              max="200"
+              step="5"
+            >
+          </label>
+
+          <label class="toolbar__slider">
+            <span>Fog <em>{{ galaxy.fogStrength.value.toFixed(2) }}</em></span>
+            <input
+              v-model.number="galaxy.fogStrength.value"
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+            >
+          </label>
+        </div>
 
         <!-- The view switcher sits with the filters because it is one: it
              changes how the same filtered set is presented. -->
@@ -454,6 +517,41 @@ const countLabel = computed(() => {
 .toolbar__view--on {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/*
+ * Set apart by a rule: these control how the galaxy DRAWS the set, where
+ * everything above controls what is in it. Without the separation they read as
+ * more filters.
+ */
+.toolbar__galaxy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding-block-start: var(--space-s);
+  border-block-start: 1px solid var(--rule);
+}
+
+.toolbar__slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.toolbar__slider em {
+  font-style: normal;
+  color: var(--ink-muted);
+  /* Tabular figures, so the label does not jitter as the value changes. */
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar__slider input {
+  inline-size: 100%;
+  accent-color: var(--accent);
 }
 
 .toolbar__count {

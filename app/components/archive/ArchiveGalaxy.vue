@@ -115,10 +115,23 @@ const ATLAS_SLOTS = ATLAS_COLS * ATLAS_ROWS
 
 /* ── controls, exposed to the UI ───────────────────────────────────────── */
 
-const paused = ref(false)
-const depthRange = ref(35)
-const fogStrength = ref(1.10)
-const thumbnails = ref(true)
+/*
+ * Display controls live in a composable because the TOOLBAR renders them now.
+ * The canvas obeys them; it no longer owns them. Defaults and the reasoning
+ * behind depth 35 are in useGalaxyControls.
+ */
+const { paused, depthRange, fogStrength, thumbnails } = useGalaxyControls()
+
+const chrome = useChromeDrag()
+
+/**
+ * The simulation clock stops for a pause OR for a panel drag.
+ *
+ * Kept distinct from `paused` on purpose: a drag must not flip the user's
+ * pause toggle, and releasing the panel must not resume a galaxy they had
+ * deliberately paused.
+ */
+const frozen = computed(() => paused.value || chrome.dragging.value)
 const hovered = ref<string | null>(null)
 const ready = ref(false)
 
@@ -293,6 +306,8 @@ let rectColorArr: Float32Array
 let haloColorArr: Float32Array
 let atlasArr: Float32Array
 let thumbTimeArr: Float32Array
+/** Per-instance face normal, for the facing test in updateThumbnails. */
+let normalArr: Float32Array
 
 let displayedIds: string[] = []
 let displayedCount = 0
@@ -470,9 +485,11 @@ function buildGalaxy(cap: number): void {
   haloColorArr = new Float32Array(cap * 3)
   atlasArr = new Float32Array(cap * 2).fill(-1)
   thumbTimeArr = new Float32Array(cap).fill(-1)
+  normalArr = new Float32Array(cap * 3)
 
   const dummy = new Object3D()
   const euler = new Euler()
+  const normal = new Vector3()
 
   for (let i = 0; i < cap; i++) {
     // An inner hole plus a density power keeps the core sparse enough that
@@ -507,6 +524,19 @@ function buildGalaxy(cap: number): void {
     const s = GALAXY.tileScale * (0.7 + Math.random() * 0.6)
     dummy.scale.set(s, s, s)
     dummy.updateMatrix()
+
+    /*
+     * The tile's face normal, kept for the CPU-side facing test.
+     *
+     * A PlaneGeometry faces +Z in its own space, so the world normal is that
+     * axis put through the same rotation. Recorded here rather than recovered
+     * from `instanceMatrix` later because the matrix carries scale too, and
+     * this is the one moment the rotation exists on its own.
+     */
+    normal.set(0, 0, 1).applyQuaternion(dummy.quaternion)
+    normalArr[i * 3] = normal.x
+    normalArr[i * 3 + 1] = normal.y
+    normalArr[i * 3 + 2] = normal.z
 
     rectMesh.setMatrixAt(i, dummy.matrix)
     haloMesh.setMatrixAt(i, dummy.matrix)
@@ -690,16 +720,63 @@ const scanMatrix = new Matrix4()
  *   - `depthRange` — the same threshold the shader fades on. Loading a texture
  *     the shader will multiply to zero wastes a slot and a request.
  *   - the view frustum — a tile behind you is never seen, so a slot spent on it
- *     is a slot a visible tile does not get. This is what "only the ones facing
- *     the viewer" needs.
+ *     is a slot a visible tile does not get.
+ *   - FACING — a tile turned edge-on to the camera shows its thumbnail as a
+ *     sliver a pixel or two wide. See `facingOf` below.
  *   - distance order — when more tiles qualify than there are slots, the
  *     nearest ones win, because those are the ones rendered most opaquely.
  *
- * Released on a wider radius than they are acquired (`keepDist`), so a tile
- * hovering at the boundary does not thrash its slot every scan.
+ * Released on wider thresholds than they are acquired (`KEEP_MARGIN`,
+ * `FACING_KEEP`), so a tile hovering at either boundary does not thrash its
+ * slot every scan.
  */
 const RESCAN_INTERVAL_MS = 250
 const KEEP_MARGIN = 1.25
+
+/**
+ * How square-on a tile must be to earn a slot, and to keep one.
+ *
+ * These are |cos| of the angle between the tile's normal and the line of
+ * sight: 1 is dead-on, 0 is exactly edge-on. 0.35 is about 70° off axis —
+ * past that the tile is foreshortened to a quarter of its width and the
+ * thumbnail has stopped being an image.
+ *
+ * Acquire high, release low. With one threshold, a tile tumbling across the
+ * line would load, drop, and reload every scan, spending a request each time.
+ */
+const FACING_TAKE = 0.35
+const FACING_KEEP = 0.2
+
+const scanNormal = new Vector3()
+const scanToCamera = new Vector3()
+
+/**
+ * How square-on tile `i` currently is, from 0 (edge-on) to 1 (facing).
+ *
+ * Mirrors what the vertex shader does. Far from the camera a tile keeps its
+ * fixed tumble; near it, the shader blends the tile round to face the camera
+ * (`near` in the shader, the same smoothstep recomputed here). So the answer
+ * has to blend too: a tile that is nearly on top of the camera is fully
+ * billboarded and therefore perfectly facing, whatever its tumble says.
+ *
+ * `abs` because a plane is legible from behind as well — the thumbnail is
+ * mirrored, not absent, and the halo pass hides the difference at this size.
+ */
+function facingOf(index: number, position: Vector3, distance: number): number {
+  const threshold = depthRange.value
+
+  // The shader's `near`, recomputed: 1 inside 0.7·threshold, 0 beyond it.
+  const t = Math.min(Math.max((distance - threshold * 0.7) / (threshold * 0.3), 0), 1)
+  const near = 1 - t * t * (3 - 2 * t) // smoothstep
+
+  scanNormal.set(normalArr[index * 3]!, normalArr[index * 3 + 1]!, normalArr[index * 3 + 2]!)
+  scanToCamera.copy(camera!.position).sub(position).normalize()
+
+  const tumbled = Math.abs(scanNormal.dot(scanToCamera))
+
+  // Billboarding wins as `near` approaches 1, exactly as in the shader.
+  return tumbled + (1 - tumbled) * near
+}
 
 let lastScan = 0
 
@@ -738,8 +815,18 @@ function updateThumbnails(now: number): void {
 
     if (distance >= keepDist || !scanFrustum.containsPoint(scanPos)) continue
 
+    /*
+     * Computed once and used for both decisions, at two thresholds. Tiles
+     * tumble continuously, so this is the test that actually changes from scan
+     * to scan — distance barely moves while the camera is still.
+     */
+    const facing = facingOf(i, scanPos, distance)
+    if (facing < FACING_KEEP) continue
+
     keep.add(id)
-    if (distance < maxDist) candidates.push({ id, index: i, distance })
+    if (distance < maxDist && facing >= FACING_TAKE) {
+      candidates.push({ id, index: i, distance })
+    }
   }
 
   candidates.sort((a, b) => a.distance - b.distance)
@@ -949,7 +1036,7 @@ function render(time: number): void {
   const delta = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0
   lastTime = time
 
-  if (!paused.value) {
+  if (!frozen.value) {
     elapsed += delta
     spinPhase += delta * GALAXY.spinSpeed
   }
@@ -967,7 +1054,17 @@ function render(time: number): void {
     rectMaterial.uniforms.uUseThumbs!.value = thumbnails.value ? 1 : 0
   }
 
-  updateThumbnails(time)
+  /*
+   * The scan is skipped while frozen, which is the point of freezing: it walks
+   * all 30,000 instances and is by far the most expensive thing on the main
+   * thread here. Nothing has moved anyway — the clock is stopped — so it would
+   * reach the same answer at the cost of a dropped frame in the drag.
+   *
+   * The scene is still rendered. Skipping the draw would save more, but the
+   * drawing buffer is not preserved, so a frame without a draw can flash.
+   */
+  if (!frozen.value) updateThumbnails(time)
+
   renderer.render(scene, camera)
 }
 
@@ -1056,49 +1153,6 @@ watch(depthRange, () => {
       {{ hovered }}
     </p>
 
-    <div class="galaxy__controls">
-      <button
-        type="button"
-        class="galaxy__toggle"
-        :aria-pressed="paused"
-        @click="paused = !paused"
-      >
-        {{ paused ? 'Play' : 'Pause' }}
-      </button>
-
-      <button
-        type="button"
-        class="galaxy__toggle"
-        :class="{ 'galaxy__toggle--on': thumbnails }"
-        :aria-pressed="thumbnails"
-        @click="thumbnails = !thumbnails"
-      >
-        Thumbnails
-      </button>
-
-      <label class="galaxy__slider">
-        <span>Depth <em>{{ depthRange }}</em></span>
-        <input
-          v-model.number="depthRange"
-          type="range"
-          min="20"
-          max="200"
-          step="5"
-        >
-      </label>
-
-      <label class="galaxy__slider">
-        <span>Fog <em>{{ fogStrength.toFixed(2) }}</em></span>
-        <input
-          v-model.number="fogStrength"
-          type="range"
-          min="0"
-          max="1.5"
-          step="0.05"
-        >
-      </label>
-    </div>
-
     <p class="galaxy__hint">
       Drag to orbit · scroll to zoom · click a tile to open it
     </p>
@@ -1150,55 +1204,6 @@ watch(depthRange, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.galaxy__controls {
-  position: absolute;
-  inset-block-end: var(--space-s);
-  inset-inline-start: var(--space-s);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  align-items: center;
-  padding: var(--space-2xs) var(--space-xs);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-}
-
-.galaxy__toggle {
-  border: 1px solid var(--rule);
-  padding: var(--space-3xs) var(--space-xs);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
-.galaxy__toggle:hover { color: var(--ink); }
-
-.galaxy__toggle--on {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.galaxy__slider {
-  display: flex;
-  gap: var(--space-2xs);
-  align-items: center;
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
-.galaxy__slider em {
-  font-style: normal;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.galaxy__slider input {
-  inline-size: 6rem;
-  accent-color: var(--accent);
 }
 
 .galaxy__hint {

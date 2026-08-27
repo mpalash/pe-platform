@@ -45,6 +45,10 @@ export function useDraggable(options: DraggableOptions) {
   const panel = ref<HTMLElement | null>(null)
   const dragging = ref(false)
 
+  // Announced globally so expensive things can stand down for the duration —
+  // the galaxy freezes its simulation while a panel is moving.
+  const chrome = useChromeDrag()
+
   /**
    * Clamps to the viewport. Reads the panel's real size each time rather than
    * caching it — these panels change height when a menu opens or the clip
@@ -82,6 +86,7 @@ export function useDraggable(options: DraggableOptions) {
     if (event.button !== 0) return
 
     dragging.value = true
+    chrome.begin()
     originX = event.clientX
     originY = event.clientY
     startX = position.value.x
@@ -101,6 +106,7 @@ export function useDraggable(options: DraggableOptions) {
   function onPointerUp(event: PointerEvent): void {
     if (!dragging.value) return
     dragging.value = false
+    chrome.end()
     ;(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId)
   }
 
@@ -149,7 +155,12 @@ export function useDraggable(options: DraggableOptions) {
     window.addEventListener('resize', reclamp, { passive: true })
   })
 
-  onBeforeUnmount(() => window.removeEventListener('resize', reclamp))
+  onBeforeUnmount(() => {
+    window.removeEventListener('resize', reclamp)
+    // Unmounting mid-drag — a route change under the pointer — would otherwise
+    // leave the global count raised and the galaxy frozen for ever.
+    if (dragging.value) chrome.end()
+  })
 
   const style = computed(() => ({
     insetInlineStart: `${position.value.x}px`,

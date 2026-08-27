@@ -122,9 +122,16 @@ docs/plan/
 14. **Chrome floats; it does not take layout space.** The header and archive
     toolbar are fixed, draggable panels clamped `DRAG_MARGIN` (24px) inside the
     window. Anything that needs to clear them adds its own padding — nothing
-    should reintroduce a chrome height to subtract.
+    should reintroduce a chrome height to subtract. The galaxy's display
+    controls live in the toolbar via `useGalaxyControls`, not on the canvas, and
+    the galaxy freezes while `useChromeDrag().dragging` is true.
 
-15. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
+15. **The galaxy's constants are checked by `test/galaxy.spec.ts`.** Camera rest
+    distance against the radius, facing and distance hysteresis, atlas cell
+    aspect. Every one of those fails silently in the browser, so if a change
+    there makes a test fail, the test is probably right.
+
+16. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
 ## Gotchas worth not rediscovering

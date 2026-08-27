@@ -1,15 +1,30 @@
 <script setup lang="ts">
 /**
- * The intensity scale, as a contiguous-range selector.
+ * The intensity scale, as a vertical drag-to-select range.
  *
- * Ported from pe-vue. Selection behaviour, unchanged because it is good:
- *   nothing selected + click        → that single bin
- *   single bin       + click other  → the range between them, either direction
- *   single bin       + click itself → clear
- *   range            + click        → restart from that single bin
+ * Vertical because the toolbar is a column, and because a column is the one
+ * arrangement where the bin NAMES fit. Across 240px each of fifteen bins got
+ * about fourteen pixels — not enough for "War-10" at any readable size, which
+ * is why the horizontal version had to fall back to colour alone. Down the
+ * side there is room for the swatch and the word, so the scale is legible
+ * again without giving up the ramp.
  *
- * Each bin is a real <button> with aria-pressed, so the whole scale is operable
- * from the keyboard (hard rule 11).
+ * Peace at the top, war at the bottom: the same order as BINS, read the way a
+ * list is read.
+ *
+ * Selection:
+ *   drag across the bins  → the range you dragged over, either direction
+ *   click a bin           → that single bin
+ *   click the sole bin    → clear
+ *   click with a range    → restart from that single bin
+ *
+ * The drag is tracked on the CONTAINER, not on the bins. Deriving the index
+ * from the pointer's y within the track means the selection keeps following
+ * once the pointer leaves the element sideways, which is what a drag on a thin
+ * column does constantly. Per-bin `pointerenter` would drop it every time.
+ *
+ * Keyboard is unaffected: each bin is still a real <button> with aria-pressed,
+ * and Enter or Space runs the same click path (hard rule 11).
  */
 const props = defineProps<{
   modelValue: [number, number] | null
@@ -19,43 +34,103 @@ const emit = defineEmits<{ 'update:modelValue': [[number, number] | null] }>()
 
 const bins = BINS
 
+const track = useTemplateRef<HTMLElement>('track')
+const dragging = ref(false)
+
+/** Where the drag started, so the range can grow in either direction. */
+let anchor = 0
+/** Distinguishes a click from a drag — only a click may clear the selection. */
+let moved = false
+/**
+ * Whether the bin under the pointer was already the whole selection when the
+ * press began. Read at pointerdown, because pointerdown immediately overwrites
+ * the model and the answer is gone by the time pointerup needs it.
+ */
+let wasSoleSelection = false
+
 function isActive(index: number): boolean {
   if (!props.modelValue) return false
   const [start, end] = props.modelValue
   return index >= start && index <= end
 }
 
-function select(index: number): void {
+/**
+ * Which bin the pointer is over, from its y alone.
+ *
+ * Clamped rather than nulled outside the track: dragging past the last bin
+ * should select up to the last bin, not abandon the drag.
+ */
+function indexAt(clientY: number): number {
+  const el = track.value
+  if (!el) return 0
+
+  const rect = el.getBoundingClientRect()
+  const step = rect.height / bins.length
+  const raw = Math.floor((clientY - rect.top) / step)
+
+  return Math.min(Math.max(raw, 0), bins.length - 1)
+}
+
+function onPointerDown(event: PointerEvent): void {
+  if (event.button !== 0) return
+
+  anchor = indexAt(event.clientY)
+  moved = false
+  dragging.value = true
+
+  // Capture on the container so movement outside it still reports.
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  emit('update:modelValue', [anchor, anchor])
+
+  // Stops the browser selecting the labels as text mid-drag.
+  event.preventDefault()
+}
+
+function onPointerMove(event: PointerEvent): void {
+  if (!dragging.value) return
+
+  const index = indexAt(event.clientY)
+  if (index !== anchor) moved = true
+
+  emit('update:modelValue', [Math.min(anchor, index), Math.max(anchor, index)])
+}
+
+function onPointerUp(event: PointerEvent): void {
+  if (!dragging.value) return
+
+  dragging.value = false
+  ;(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId)
+
+  // A click — not a drag — on a bin that was already the entire selection
+  // clears it. Checked against what the pointerdown produced, hence [i, i].
   const range = props.modelValue
-
-  if (!range) {
-    emit('update:modelValue', [index, index])
-    return
+  if (!moved && wasSoleSelection && range && range[0] === anchor && range[1] === anchor) {
+    emit('update:modelValue', null)
   }
+}
 
-  const [start, end] = range
+function noteSoleSelection(event: PointerEvent): void {
+  const index = indexAt(event.clientY)
+  const range = props.modelValue
+  wasSoleSelection = Boolean(range && range[0] === index && range[1] === index)
+}
 
-  if (start === end) {
-    if (index === start) emit('update:modelValue', null)
-    else emit('update:modelValue', [Math.min(start, index), Math.max(start, index)])
-    return
-  }
-
-  emit('update:modelValue', [index, index])
+function onTrackPointerDown(event: PointerEvent): void {
+  noteSoleSelection(event)
+  onPointerDown(event)
 }
 
 /**
- * The scale is drawn as its colours, not as fifteen text labels.
- *
- * In a 240px column each bin gets about fourteen pixels, which is not enough
- * for "W10" at any size anyone would want to read — the labels collided and
- * the last one overflowed its cell. The colour ramp is the better signal
- * anyway: it is the same ramp the galaxy colours its tiles with, so the scale
- * and the thing it filters now look like each other.
- *
- * Nothing is lost for assistive tech or for a mouse: each button keeps its
- * full bin name as visually-hidden text and as its title.
+ * Keyboard equivalent of a click, kept on the button so Enter and Space work
+ * without the pointer path. Behaves as the click case above.
  */
+function selectSingle(index: number): void {
+  const range = props.modelValue
+  const sole = range && range[0] === index && range[1] === index
+
+  emit('update:modelValue', sole ? null : [index, index])
+}
+
 function colorFor(bin: string): string {
   return BIN_COLORS[bin] ?? 'transparent'
 }
@@ -70,9 +145,15 @@ const label = computed(() => {
 <template>
   <div class="bins">
     <div
-      class="bins__scale"
+      ref="track"
+      class="bins__track"
+      :class="{ 'bins__track--dragging': dragging }"
       role="group"
-      aria-label="Filter by intensity"
+      aria-label="Filter by intensity. Drag across the scale to select a range."
+      @pointerdown="onTrackPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
     >
       <button
         v-for="(bin, index) in bins"
@@ -83,14 +164,15 @@ const label = computed(() => {
         :data-side="bin.startsWith('Peace') ? 'peace' : 'war'"
         :aria-pressed="isActive(index)"
         :title="bin"
-        @click="select(index)"
+        @keydown.enter.prevent="selectSingle(index)"
+        @keydown.space.prevent="selectSingle(index)"
       >
-        <span class="visually-hidden">{{ bin }}</span>
         <span
           class="bins__swatch"
           aria-hidden="true"
           :style="{ background: colorFor(bin) }"
         />
+        <span class="bins__name">{{ bin }}</span>
       </button>
     </div>
 
@@ -104,71 +186,103 @@ const label = computed(() => {
 </template>
 
 <style scoped>
-/*
- * A column, because the toolbar is one. The label sits above the scale rather
- * than beside it — fifteen bins plus a label will not fit across 240px on any
- * reading of the type scale.
- */
 .bins {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
-  align-items: flex-start;
+  align-items: stretch;
   inline-size: 100%;
 }
 
-/*
- * The fifteen bins are a scale, so they stay in one contiguous run: a grid of
- * equal fractions rather than a flex row that wraps five onto a second line
- * and breaks the peace-to-war reading. Equal columns also make the whole thing
- * fit whatever width the panel is, without per-bin sizing.
- */
-.bins__scale {
-  display: grid;
-  grid-template-columns: repeat(15, 1fr);
-  gap: 1px;
-  inline-size: 100%;
+.bins__track {
+  display: flex;
+  flex-direction: column;
+  /*
+   * No gap. The bins are a continuous scale, and a gap turns it into fifteen
+   * separate controls — it also puts dead zones under a drag, where the
+   * pointer is over the track but not over any bin.
+   */
+  gap: 0;
+  /* The pointer handlers own the gesture; without this, touch scrolls the
+     panel instead of selecting. */
+  touch-action: none;
+}
+
+.bins__track--dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .bins__bin {
-  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  inline-size: 100%;
   padding: 0;
   border: 0;
   background: none;
-  /* A comfortable hit target over a 6px swatch — the tappable area is the
-     button, not the mark inside it. */
-  block-size: 1.5rem;
-  display: grid;
-  place-items: stretch;
+  block-size: 1.15rem;
   cursor: pointer;
+  text-align: start;
+  /*
+   * The buttons are decoration for the pointer: the container reads the
+   * gesture from coordinates, and a button swallowing the event would break a
+   * drag the moment it crossed one. They stay focusable for the keyboard.
+   */
+  pointer-events: none;
+}
+
+.bins__bin:focus-visible {
+  /* Focus still has to be visible even though the button ignores the pointer. */
+  outline-offset: -2px;
+}
+
+.bins__swatch {
+  flex: none;
+  display: block;
+  inline-size: 1.75rem;
+  block-size: 100%;
+  opacity: 0.32;
+  transition: opacity var(--duration-quick) var(--ease-out);
 }
 
 /*
- * Unselected bins are dimmed rather than hidden, so the full range of the
- * scale stays visible while a subset of it is chosen.
+ * Unselected bins stay visible but dimmed, so the whole range of the scale is
+ * legible while a subset of it is chosen.
  */
-.bins__swatch {
-  display: block;
-  block-size: 100%;
-  opacity: 0.32;
-  transition:
-    opacity var(--duration-quick) var(--ease-out),
-    outline-color var(--duration-quick) var(--ease-out);
-}
-
-.bins__bin:hover .bins__swatch {
-  opacity: 0.7;
-}
-
-.bins__bin--active .bins__swatch {
-  opacity: 1;
-}
-
-.bins__label {
-  white-space: nowrap;
+.bins__name {
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--ink-faint);
+  transition: color var(--duration-quick) var(--ease-out);
+  white-space: nowrap;
+}
+
+.bins__track:hover .bins__swatch {
+  opacity: 0.55;
+}
+
+.bins__bin--active .bins__swatch,
+.bins__track:hover .bins__bin--active .bins__swatch {
+  opacity: 1;
+}
+
+.bins__bin--active .bins__name {
+  color: var(--ink);
+}
+
+.bins__label {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bins__swatch,
+  .bins__name {
+    transition-duration: 1ms;
+  }
 }
 </style>
