@@ -87,7 +87,10 @@ onMounted(async () => {
     <template v-else>
       <ArchiveToolbar />
 
-      <Center measure="full">
+      <Center
+        measure="full"
+        flush
+      >
         <!--
           No media-origin banner. Serving from S3 is still wrong for anything
           deployed, so the warning stays where it belongs: usePlaybackSource
@@ -196,6 +199,9 @@ onMounted(async () => {
 }
 
 .notice {
+  /* The column is flush so the grid can reach the edges; text still needs
+     the gutter back, or it runs into the window edge. */
+  padding-inline: var(--space-gutter);
   padding-block: var(--space-s);
   font-size: var(--text-xs);
   color: var(--ink-faint);

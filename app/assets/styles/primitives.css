@@ -37,6 +37,14 @@
   padding-inline: var(--center-gutter);
 }
 
+/*
+ * `--flush` removes the horizontal gutter, so a full-width child reaches the
+ * window edge. For the archive's grid and galaxy: they are views OF the whole
+ * archive, and a gutter around them reads as a frame around something that
+ * should feel unbounded.
+ */
+.center--flush { --center-gutter: 0px; }
+
 .center--wide { --center-measure: var(--measure-wide); }
 .center--narrow { --center-measure: var(--measure-narrow); }
 .center--full { --center-measure: 100%; }

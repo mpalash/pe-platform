@@ -31,7 +31,10 @@ useSeoMeta({
 </script>
 
 <template>
-  <article v-if="page">
+  <article
+    v-if="page"
+    class="content-page"
+  >
     <!-- Same measure as the blocks below, so the whole page shares one left
          edge. A wider header centres to a different edge and reads as a mistake. -->
     <Center
@@ -54,6 +57,13 @@ useSeoMeta({
 </template>
 
 <style scoped>
+/* Content stops well clear of the window edge. Without this the last block
+   sits flush against the bottom, which reads as a page that was cut off —
+   and there is no footer now to provide the gap. */
+.content-page {
+  padding-block-end: var(--space-3xl);
+}
+
 .page-header {
   padding-block-start: var(--space-2xl);
   padding-block-end: var(--space-xl);

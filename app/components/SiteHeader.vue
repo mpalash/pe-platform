@@ -82,13 +82,6 @@ const links = computed(() => [
           >
             Sign in
           </button>
-          <button
-            type="button"
-            class="site-header__auth"
-            @click="authModal.openRegister()"
-          >
-            Register
-          </button>
         </template>
       </div>
 

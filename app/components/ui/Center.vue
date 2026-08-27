@@ -4,9 +4,12 @@
  */
 const props = withDefaults(defineProps<{
   measure?: 'default' | 'wide' | 'narrow' | 'full'
+  /** Drop the horizontal gutter so children reach the window edge. */
+  flush?: boolean
   as?: string
 }>(), {
   measure: 'default',
+  flush: false,
   as: 'div',
 })
 
@@ -22,6 +25,7 @@ const measureVar = computed(() => ({
   <component
     :is="as"
     class="center"
+    :class="{ 'center--flush': flush }"
     :style="{ '--center-measure': measureVar }"
   >
     <slot />

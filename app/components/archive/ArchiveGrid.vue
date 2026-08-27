@@ -111,6 +111,40 @@ function posterFor(id: string): string | null {
 function nameFor(id: string): string {
   return archive.getItem(id)?.name ?? ''
 }
+
+/**
+ * Thumbnails fade in as they arrive.
+ *
+ * These load from S3 at wildly different speeds, and without this the grid
+ * pops in tile by tile, which on a wall of violent imagery is genuinely
+ * jarring. Tracked per id rather than per tile because rows are recycled as
+ * you scroll — keyed on the element, a recycled row would replay the fade for
+ * an image that was already loaded.
+ */
+const loaded = useState<Set<string>>('archive:gridLoaded', () => new Set())
+
+function isLoaded(id: string): boolean {
+  return loaded.value.has(id)
+}
+
+function onLoad(id: string): void {
+  if (loaded.value.has(id)) return
+  // Replaced rather than mutated so the template re-renders.
+  loaded.value = new Set(loaded.value).add(id)
+}
+
+/**
+ * Catches images the browser had already finished with.
+ *
+ * A cached image is `complete` before the element is even attached, so its
+ * `load` event never fires and the tile would sit at opacity 0 for ever. That
+ * is the failure mode of every naive fade-in: it works on a cold load and
+ * leaves a blank grid on the second visit.
+ */
+function markIfComplete(id: string, el: Element | null): void {
+  const img = el as HTMLImageElement | null
+  if (img?.complete && img.naturalWidth > 0) onLoad(id)
+}
 </script>
 
 <template>
@@ -153,10 +187,13 @@ function nameFor(id: string): string {
         >
           <img
             v-if="posterFor(id)"
+            :ref="el => markIfComplete(id, el as Element | null)"
             :src="posterFor(id)!"
             :alt="nameFor(id)"
             loading="lazy"
             decoding="async"
+            :data-loaded="isLoaded(id)"
+            @load="onLoad(id)"
           >
           <span
             v-else
@@ -198,16 +235,21 @@ function nameFor(id: string): string {
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
-  /* Dimmed until hover: a wall of violent imagery at full intensity is a lot,
-     and the dimming also makes the hovered tile read as the active one. */
-  opacity: 0.72;
+  /* Starts transparent and fades to the resting state once decoded. */
+  opacity: 0;
   transition:
-    opacity var(--duration-quick) var(--ease-out),
+    opacity var(--duration-slow) var(--ease-out),
     transform var(--duration-normal) var(--ease-out);
 }
 
-.grid__tile:hover img,
-.grid__tile:focus-visible img {
+/* Dimmed at rest: a wall of violent imagery at full intensity is a lot, and the
+   dimming also makes the hovered tile read as the active one. */
+.grid__tile img[data-loaded='true'] {
+  opacity: 0.72;
+}
+
+.grid__tile:hover img[data-loaded='true'],
+.grid__tile:focus-visible img[data-loaded='true'] {
   opacity: 1;
   transform: scale(1.03);
 }
@@ -230,9 +272,15 @@ function nameFor(id: string): string {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grid__tile:hover img,
-  .grid__tile:focus-visible img {
+  .grid__tile:hover img[data-loaded='true'],
+  .grid__tile:focus-visible img[data-loaded='true'] {
     transform: none;
+  }
+
+  /* The fade still happens — it is an opacity change, not movement — but
+     instantly, so nothing is ever left invisible. */
+  .grid__tile img {
+    transition-duration: 1ms;
   }
 }
 </style>

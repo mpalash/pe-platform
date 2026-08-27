@@ -22,7 +22,10 @@ useSeoMeta({ robots: 'noindex, nofollow' })
 </script>
 
 <template>
-  <article v-if="page">
+  <article
+    v-if="page"
+    class="content-page"
+  >
     <Center
       class="preview-banner"
       measure="full"
@@ -66,6 +69,10 @@ useSeoMeta({ robots: 'noindex, nofollow' })
   padding-block: var(--space-2xs);
   font-size: var(--text-xs);
   text-align: center;
+}
+
+.content-page {
+  padding-block-end: var(--space-3xl);
 }
 
 .page-header {

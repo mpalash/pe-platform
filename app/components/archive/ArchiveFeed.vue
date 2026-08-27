@@ -19,8 +19,56 @@ const props = withDefaults(defineProps<{
 })
 
 const archive = useArchive()
+const active = useActivePlayer()
 
 const viewport = useTemplateRef<HTMLElement>('viewport')
+
+/**
+ * Which clip plays is decided HERE, not by each clip.
+ *
+ * Each player used to claim playback itself from an IntersectionObserver, which
+ * meant several could qualify at once and the winner was whichever observer
+ * fired last. The feed is the only thing that knows where every clip is, so it
+ * picks: nothing plays while you are scrolling, and when scrolling stops the
+ * clip nearest the middle of the window starts.
+ */
+const SCROLL_IDLE_MS = 180
+
+let idleTimer: ReturnType<typeof setTimeout> | undefined
+
+function playCentremost(): void {
+  const container = viewport.value
+  if (!container) return
+
+  const middle = window.innerHeight / 2
+  let bestId: string | null = null
+  let bestDistance = Infinity
+
+  for (const row of container.querySelectorAll<HTMLElement>('[data-row]')) {
+    const id = row.dataset['id']
+    if (!id) continue
+
+    const rect = row.getBoundingClientRect()
+
+    // Ignore anything entirely off-screen: on a virtualised list the overscan
+    // rows are real elements sitting above and below the viewport.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) continue
+
+    const distance = Math.abs(rect.top + rect.height / 2 - middle)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestId = id
+    }
+  }
+
+  if (bestId) active.claim(bestId)
+  else active.release()
+}
+
+function onScrollSettle(): void {
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(playCentremost, SCROLL_IDLE_MS)
+}
 
 /**
  * Row height is measured rather than assumed — the metadata block wraps
@@ -53,6 +101,11 @@ const windowed = computed(() =>
 
 function onScroll(): void {
   scrollTop.value = window.scrollY - (viewport.value?.offsetTop ?? 0)
+
+  // Everything stops while the feed is moving; the centremost clip starts again
+  // once it settles.
+  active.release()
+  onScrollSettle()
 }
 
 function measure(): void {
@@ -77,6 +130,9 @@ onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', measure, { passive: true })
 
+  // Start the first clip without needing a scroll to trigger it.
+  onScrollSettle()
+
   // Row height changes with width; re-measure when the container does.
   if (viewport.value) {
     resizeObserver = new ResizeObserver(() => measure())
@@ -88,13 +144,17 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll)
   window.removeEventListener('resize', measure)
   resizeObserver?.disconnect()
+  clearTimeout(idleTimer)
+  active.release()
 })
 
 // Jumping back to the top on a filter change is the correct behaviour: the
 // old scroll offset means nothing against a different result set.
 watch(() => props.ids, () => {
   scrollTop.value = 0
+  active.release()
   if (import.meta.client) window.scrollTo({ top: 0, behavior: 'auto' })
+  onScrollSettle()
 })
 </script>
 
@@ -118,6 +178,7 @@ watch(() => props.ids, () => {
       <div
         v-for="row in windowed"
         :key="row.id"
+        :data-id="row.id"
         data-row
         class="feed__row"
         :style="{ transform: `translateY(${row.index * rowHeight}px)` }"

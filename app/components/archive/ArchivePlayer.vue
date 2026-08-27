@@ -8,21 +8,20 @@ import type { ArchiveItem } from '~~/shared/utils/archive'
  * and pauses when it is not, and only ever one plays at a time. That is what
  * makes the feed feel like an archive rather than a page of videos.
  *
- * Kept from the original: IntersectionObserver, the centre-of-viewport test, the
- * play delay, the single-active-player coordination, muted-by-default.
+ * Kept from the original: the centre-of-viewport behaviour, single-active-player
+ * coordination, muted-by-default.
+ *
+ * The DECISION of which clip plays now lives in ArchiveFeed, which is the only
+ * thing that knows where every clip is. This component just obeys
+ * `useActivePlayer`. Each player observing itself meant several could qualify
+ * at once and the winner was whichever observer happened to fire last.
  * Dropped: the analytics calls (no analytics in the dependency budget), the
  * PocketBase bookmark write (no accounts until Phase 5), the debug logging.
  *
  * `src` comes from usePlaybackSource — this component never names a container
  * format (hard rule 5).
  */
-const props = withDefaults(defineProps<{
-  item: ArchiveItem
-  /** Delay before an in-view clip claims playback, in ms. */
-  playDelay?: number
-}>(), {
-  playDelay: 120,
-})
+const props = defineProps<{ item: ArchiveItem }>()
 
 const archive = useArchive()
 const active = useActivePlayer()
@@ -36,34 +35,9 @@ const progress = ref(0)
 const remaining = ref(0)
 const duration = ref(0)
 
-let observer: IntersectionObserver | null = null
-let playTimer: ReturnType<typeof setTimeout> | undefined
 let playPromise: Promise<void> | null = null
 
 const isBookmarked = computed(() => archive.isBookmarked(props.item.id))
-
-/**
- * "Comfortably in view" — not merely intersecting. A clip half off the bottom
- * of the screen should not start; the original used the same band and it is
- * what stops the feed stuttering as you scroll.
- */
-function isWellPlaced(): boolean {
-  const el = videoEl.value
-  if (!el) return false
-
-  const rect = el.getBoundingClientRect()
-  return rect.top > window.innerHeight * 0.05 && rect.bottom < window.innerHeight * 0.95
-}
-
-function claimPlayback(): void {
-  if (!isWellPlaced()) return
-  if (active.currentId.value === props.item.id) return
-
-  clearTimeout(playTimer)
-  playTimer = setTimeout(() => {
-    if (isWellPlaced()) active.claim(props.item.id)
-  }, props.playDelay)
-}
 
 async function play(): Promise<void> {
   const el = videoEl.value
@@ -150,25 +124,7 @@ watch(active.muted, (muted) => {
   if (videoEl.value) videoEl.value.muted = muted
 })
 
-onMounted(() => {
-  if (!videoEl.value) return
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) claimPlayback()
-        else if (active.currentId.value === props.item.id) active.release()
-      }
-    },
-    { threshold: [0, 0.5, 0.9], rootMargin: '0px' },
-  )
-
-  observer.observe(videoEl.value)
-})
-
 onBeforeUnmount(() => {
-  observer?.disconnect()
-  clearTimeout(playTimer)
   pause()
   if (active.currentId.value === props.item.id) active.release()
 })

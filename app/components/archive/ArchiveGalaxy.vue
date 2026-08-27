@@ -550,6 +550,24 @@ function markAtlasDirty(): void {
   ;(rectMesh.geometry.getAttribute('aThumbTime') as InstancedBufferAttribute).needsUpdate = true
 }
 
+/**
+ * Atlas cell origin, in texture space.
+ *
+ * `v` is measured from the BOTTOM because three uploads a CanvasTexture with
+ * flipY on. Computing the row top-down instead — the obvious way — makes every
+ * tile sample a mirrored cell, which on a mostly-empty atlas means no
+ * thumbnails appear at all rather than wrong ones. That is the bug this had.
+ */
+function slotUv(slot: number): { u: number, v: number } {
+  const col = slot % ATLAS_COLS
+  const row = Math.floor(slot / ATLAS_COLS)
+
+  return {
+    u: col / ATLAS_COLS,
+    v: 1 - (row + 1) / ATLAS_COLS,
+  }
+}
+
 function drawToAtlas(image: HTMLImageElement, slot: number): void {
   if (!atlasCanvas || !atlasTexture) return
 
@@ -599,8 +617,9 @@ function assignSlot(id: string, index: number): void {
     slotOfId.set(id, slot)
     idOfSlot.set(slot, id)
 
-    atlasArr[index * 2] = (slot % ATLAS_COLS) / ATLAS_COLS
-    atlasArr[index * 2 + 1] = Math.floor(slot / ATLAS_COLS) / ATLAS_COLS
+    const { u, v } = slotUv(slot)
+    atlasArr[index * 2] = u
+    atlasArr[index * 2 + 1] = v
     thumbTimeArr[index] = elapsed
     markAtlasDirty()
   }
