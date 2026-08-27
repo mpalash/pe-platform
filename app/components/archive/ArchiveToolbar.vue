@@ -210,15 +210,47 @@ const countLabel = computed(() => {
 
 .toolbar__inner {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s) var(--space-l);
+  /*
+   * One row, always.
+   *
+   * Wrapping made the bar jump between one and two rows as its contents
+   * changed width — the clear button appearing, the count going from "30,651
+   * clips" to "3,980 of 30,651 clips" — which read as the search field
+   * randomly expanding. When there is genuinely not enough room the row
+   * scrolls sideways instead of reflowing the page under the reader.
+   */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: var(--space-l);
   align-items: center;
+  /* Room for the focus ring on the first and last controls, which would
+     otherwise be clipped by the scroll container. */
+  padding-inline: 2px;
+  scrollbar-width: none;
+}
+
+.toolbar__inner::-webkit-scrollbar {
+  display: none;
+}
+
+/* Nothing in the bar may wrap internally or the row grows taller. */
+.toolbar__inner > * {
+  flex: none;
 }
 
 .toolbar__search {
   position: relative;
-  flex: 1 1 14rem;
-  min-inline-size: 0;
+  /*
+   * Fixed width — neither grows nor shrinks.
+   *
+   * Anything elastic here resizes as you type, because the result count beside
+   * it changes length ("30,651 clips" → "3,980 of 30,651 clips") and the flex
+   * line redistributes. That is what read as the field randomly expanding. If
+   * the row runs out of room it scrolls; the search box stays put.
+   */
+  flex: 0 0 auto;
+  inline-size: min(20rem, 40vw);
 }
 
 .toolbar__input {
@@ -255,7 +287,7 @@ const countLabel = computed(() => {
 
 .toolbar__toggles {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2xs);
 }
 
@@ -312,8 +344,11 @@ const countLabel = computed(() => {
   border-color: var(--accent);
 }
 
+/* Fixed width so the row does not shift when the count changes length. */
 .toolbar__count {
   margin-inline-start: auto;
+  min-inline-size: 11rem;
+  text-align: end;
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;

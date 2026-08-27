@@ -107,8 +107,8 @@ const ATLAS_CELL_PX = 128
 /* ── controls, exposed to the UI ───────────────────────────────────────── */
 
 const paused = ref(false)
-const depthRange = ref(120)
-const fogStrength = ref(0.6)
+const depthRange = ref(35)
+const fogStrength = ref(1.10)
 const thumbnails = ref(true)
 const hovered = ref<string | null>(null)
 const ready = ref(false)
@@ -640,37 +640,97 @@ const scanPos = new Vector3()
  * Scans a slice of the instances each call rather than all 30,000 — a full
  * pass every frame would cost more than the rendering does.
  */
-let scanCursor = 0
+/**
+ * Give the atlas slots to the tiles genuinely nearest the camera.
+ *
+ * The previous version scanned a rolling 600 of 30,000 instances per frame and
+ * claimed a slot for anything within range that it happened to see. A given
+ * near tile was therefore only considered once every fifty frames, and the 64
+ * slots went to whichever near tiles fell inside the current window rather than
+ * to the closest ones — so a handful of thumbnails appeared, in no particular
+ * place, and changed arbitrarily as you moved. That is the "only a few show up"
+ * behaviour.
+ *
+ * Now: rank every candidate by distance and hand the slots to the top 64.
+ * Tiles this close are also the ones the vertex shader billboards toward the
+ * camera, so "nearest" and "facing you" are the same set by construction.
+ *
+ * A full scan is ~30k distance computations. That is a millisecond or so, which
+ * is why it runs a few times a second rather than every frame.
+ */
+const RESCAN_INTERVAL_MS = 250
 
-function updateThumbnails(): void {
-  if (!camera || !thumbnails.value || displayedCount === 0) return
+let lastScan = 0
 
-  const budget = Math.min(600, displayedCount)
-  const near = depthRange.value
+function updateThumbnails(now: number): void {
+  if (!camera || displayedCount === 0) return
 
-  for (let n = 0; n < budget; n++) {
-    const i = (scanCursor + n) % displayedCount
+  if (!thumbnails.value) {
+    if (slotOfId.size > 0) releaseAllSlots()
+    return
+  }
+
+  if (now - lastScan < RESCAN_INTERVAL_MS) return
+  lastScan = now
+
+  /*
+   * Rank EVERY tile by distance and take the nearest 64 — no distance cutoff.
+   *
+   * Filtering by `depthRange` first was wrong in a way worth recording: the
+   * depth slider controls how close a tile must be to be *displayed* as a
+   * thumbnail, and the shader already enforces that. Using it to decide what to
+   * *load* meant that whenever nothing happened to be inside that radius —
+   * during the intro expansion, or at any camera distance with the depth set
+   * low, which is now the default — the atlas stayed completely empty.
+   *
+   * Loading the nearest tiles unconditionally also means the texture is already
+   * there when one drifts into range, instead of fading in a second late.
+   */
+  const candidates: Array<{ id: string, index: number, distance: number }> = []
+
+  for (let i = 0; i < displayedCount; i++) {
     const id = displayedIds[i]
     if (!id) continue
 
     worldPosition(i, elapsed, scanPos)
-    const distance = scanPos.distanceTo(camera.position)
+    candidates.push({ id, index: i, distance: scanPos.distanceTo(camera.position) })
+  }
 
-    if (distance < near && !slotOfId.has(id)) {
-      assignSlot(id, i)
-    }
-    else if (distance > near * 1.6 && slotOfId.has(id)) {
-      const slot = slotOfId.get(id)!
-      slotOfId.delete(id)
-      idOfSlot.delete(slot)
-      freeSlots.push(slot)
-      atlasArr[i * 2] = -1
-      thumbTimeArr[i] = -1
-      markAtlasDirty()
+  candidates.sort((a, b) => a.distance - b.distance)
+  const wanted = candidates.slice(0, ATLAS_SLOTS)
+  const wantedIds = new Set(wanted.map(entry => entry.id))
+
+  // Release anything that is no longer in the nearest set, freeing its slot
+  // before the assignments below ask for one.
+  for (const [id, slot] of [...slotOfId]) {
+    if (wantedIds.has(id)) continue
+
+    slotOfId.delete(id)
+    idOfSlot.delete(slot)
+    freeSlots.push(slot)
+
+    const index = displayedIds.indexOf(id)
+    if (index >= 0) {
+      atlasArr[index * 2] = -1
+      thumbTimeArr[index] = -1
     }
   }
 
-  scanCursor = (scanCursor + budget) % Math.max(displayedCount, 1)
+  for (const entry of wanted) {
+    if (slotOfId.has(entry.id)) {
+      // Already has a slot, but its instance index may have moved with a
+      // filter change — keep the attribute pointing at the right tile.
+      const slot = slotOfId.get(entry.id)!
+      const { u, v } = slotUv(slot)
+      atlasArr[entry.index * 2] = u
+      atlasArr[entry.index * 2 + 1] = v
+      continue
+    }
+
+    assignSlot(entry.id, entry.index)
+  }
+
+  markAtlasDirty()
 }
 
 /* ── picking ───────────────────────────────────────────────────────────── */
@@ -862,7 +922,7 @@ function render(time: number): void {
     rectMaterial.uniforms.uUseThumbs!.value = thumbnails.value ? 1 : 0
   }
 
-  updateThumbnails()
+  updateThumbnails(time)
   renderer.render(scene, camera)
 }
 
@@ -920,6 +980,11 @@ onBeforeUnmount(() => {
 })
 
 watch(() => archive.displayedIds.value, ids => applyPlaylist(ids))
+
+// A new depth changes which tiles qualify; re-rank on the next frame.
+watch(depthRange, () => {
+  lastScan = 0
+})
 </script>
 
 <template>

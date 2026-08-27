@@ -28,6 +28,22 @@ export default defineNuxtConfig({
   ],
   devtools: { enabled: true },
 
+  /*
+   * Crossfade between pages.
+   *
+   * `out-in` rather than a true simultaneous crossfade: overlapping two pages
+   * means both are in the document at once, which doubles the height and makes
+   * the scroll position jump. Fading out then in is what actually reads as a
+   * crossfade without moving anything.
+   *
+   * Honouring prefers-reduced-motion is handled in CSS — see base.css — since
+   * the durations come from the motion tokens, which collapse to 1ms.
+   */
+  app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'page', mode: 'out-in' },
+  },
+
   css: ['~/assets/styles/main.css'],
 
   /**

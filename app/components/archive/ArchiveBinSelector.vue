@@ -92,8 +92,10 @@ const label = computed(() => {
 <style scoped>
 .bins {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs) var(--space-s);
+  /* nowrap: the toolbar is a single row, and a wrapping scale would make it
+     two. The label sits alongside rather than under. */
+  flex-wrap: nowrap;
+  gap: var(--space-s);
   align-items: center;
 }
 
@@ -127,6 +129,7 @@ const label = computed(() => {
 }
 
 .bins__label {
+  white-space: nowrap;
   font-size: var(--text-2xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;

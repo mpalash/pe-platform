@@ -354,6 +354,39 @@ dd {
   outline-color: var(--ink);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   PAGE TRANSITIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * A crossfade, and nothing else — no slide, no scale. On a site whose layout
+ * varies this much between pages, anything with direction implies a spatial
+ * relationship that is not there.
+ *
+ * Opacity only, so it costs one composited layer and cannot shift the page.
+ */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+/*
+ * Reduced motion gets the change without the fade. The duration tokens already
+ * collapse to 1ms, so this is belt and braces for the transition specifically —
+ * a fade is a motion effect even though nothing moves.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+}
+
 /**
  * Screen-reader-only text. Present in the accessibility tree, absent visually.
  */
