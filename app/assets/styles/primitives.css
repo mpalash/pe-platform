@@ -339,12 +339,18 @@
 
 .scrim {
   /*
-   * Opacity and blur trade against each other. Past about 90% the layer is
-   * effectively opaque and the blur behind it is invisible — so a scrim that
-   * wants to obscure heavily should reach for opacity, and one that wants the
-   * page to stay legible as shape and movement should lean on the blur.
+   * One opacity for every scrim, deliberately not tunable per modal.
+   *
+   * Three different values read as three different surfaces — a modal is a
+   * modal, and the depth of the layer behind it should not be a per-component
+   * decision that drifts every time one is edited. 70% also leaves the blur
+   * plenty of room to do the obscuring: past about 90% the layer is effectively
+   * opaque and any blur behind it is invisible.
+   *
+   * Blur is still per-modal, because how much of the page should stay legible
+   * genuinely does differ — see the individual overrides.
    */
-  --scrim-opacity: 80%;
+  --scrim-opacity: 70%;
   --scrim-blur: 14px;
 
   position: absolute;

@@ -292,12 +292,9 @@ onBeforeUnmount(() => {
   padding: var(--space-m);
 }
 
-/* Positioning, blur and fallback come from `.scrim` in primitives.css.
-   Lowered from the old flat 88%: at that opacity the blur behind it would not
-   be visible at all, and an invisible blur is just a slower scrim. */
-.auth__scrim {
-  --scrim-opacity: 78%;
-}
+/* Entirely `.scrim` in primitives.css — positioning, opacity, blur and the
+   no-backdrop-filter fallback. Nothing about this modal's backdrop differs from
+   the others, so it overrides none of it. */
 
 .auth__panel {
   position: relative;

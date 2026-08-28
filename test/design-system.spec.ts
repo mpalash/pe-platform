@@ -404,6 +404,26 @@ describe('modal scrims', () => {
     })
   }
 
+  /**
+   * Opacity is shared; blur is not.
+   *
+   * Three modals each picking their own opacity read as three different
+   * surfaces, and the values drift every time one of them is edited. How much
+   * of the page stays legible genuinely does differ per modal — that is what
+   * `--scrim-blur` is for.
+   */
+  it('sets scrim opacity in exactly one place', () => {
+    const declarations = MODALS
+      .map(path => readFileSync(resolve(repoRoot, path), 'utf8'))
+      .filter(source => /--scrim-opacity\s*:/.test(source))
+
+    expect(declarations, 'a modal is overriding the shared scrim opacity').toHaveLength(0)
+
+    const css = readFileSync(resolve(repoRoot, 'app/assets/styles/primitives.css'), 'utf8')
+
+    expect(css.match(/--scrim-opacity\s*:/g)).toHaveLength(1)
+  })
+
   it('the shared scrim blurs and has a fallback for browsers that cannot', () => {
     const css = readFileSync(resolve(repoRoot, 'app/assets/styles/primitives.css'), 'utf8')
 

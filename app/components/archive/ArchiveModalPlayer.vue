@@ -447,11 +447,11 @@ watch(() => props.item.id, () => {
   padding: var(--space-m);
 }
 
-/* Positioning, blur and fallback come from `.scrim` in primitives.css. Denser
-   and blurrier than the others: this modal is itself a video, and a legible
-   archive behind a playing clip competes with it. */
+/* Positioning, opacity and fallback come from `.scrim` in primitives.css.
+   Blurred harder than the others, and only blurred: this modal is itself a
+   video, so the archive behind it needs to stop resolving into anything the eye
+   can follow. Opacity is shared across every scrim. */
 .modal__scrim {
-  --scrim-opacity: 86%;
   --scrim-blur: 20px;
 }
 

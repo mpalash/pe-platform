@@ -162,15 +162,15 @@ onBeforeUnmount(() => {
 }
 
 /*
- * Positioning, blur and fallback come from `.scrim` in primitives.css.
+ * Positioning, opacity and fallback come from `.scrim` in primitives.css.
  *
- * The lightest and blurriest of the three, deliberately: the archive is loading
- * behind this, and it should be visible as movement and shape — evidence that
- * waiting is not what accepting will cost — without being legible as content
- * nobody has consented to see yet.
+ * Blurred more than the default and nothing else: the archive is loading behind
+ * this and should read as movement and shape — evidence that waiting is not
+ * what accepting will cost — without resolving into content nobody has
+ * consented to see yet. The blur is what draws that line; the opacity is shared
+ * with every other scrim.
  */
 .advisory-gate__scrim {
-  --scrim-opacity: 72%;
   --scrim-blur: 18px;
 }
 
