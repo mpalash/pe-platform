@@ -111,12 +111,36 @@ const countLabel = computed(() => {
           aria-hidden="true"
         >
           <g fill="currentColor">
-            <circle cx="6" cy="4" r="1" />
-            <circle cx="10" cy="4" r="1" />
-            <circle cx="6" cy="8" r="1" />
-            <circle cx="10" cy="8" r="1" />
-            <circle cx="6" cy="12" r="1" />
-            <circle cx="10" cy="12" r="1" />
+            <circle
+              cx="6"
+              cy="4"
+              r="1"
+            />
+            <circle
+              cx="10"
+              cy="4"
+              r="1"
+            />
+            <circle
+              cx="6"
+              cy="8"
+              r="1"
+            />
+            <circle
+              cx="10"
+              cy="8"
+              r="1"
+            />
+            <circle
+              cx="6"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="10"
+              cy="12"
+              r="1"
+            />
           </g>
         </svg>
         <span>Filters</span>

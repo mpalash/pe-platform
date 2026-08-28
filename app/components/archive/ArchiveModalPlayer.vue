@@ -224,156 +224,158 @@ watch(() => props.item.id, () => {
     />
 
     <div class="modal__panel">
-      <div class="modal__stage">
-        <video
+      <div class="modal__main">
+        <div class="modal__stage">
+          <video
+            v-if="src"
+            ref="videoEl"
+            :src="src"
+            :poster="poster ?? undefined"
+            autoplay
+            playsinline
+            preload="metadata"
+            class="modal__video"
+            @timeupdate="onTimeUpdate"
+            @play="isPlaying = true"
+            @pause="isPlaying = false"
+            @ended="onEnded"
+            @click="togglePlay"
+          />
+          <p
+            v-else
+            class="modal__unavailable"
+          >
+            Media is not configured, so this clip cannot play.
+          </p>
+
+          <button
+            type="button"
+            class="modal__close"
+            aria-label="Close"
+            @click="emit('close')"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 4l8 8M12 4l-8 8"
+                stroke="currentColor"
+                stroke-width="1.5"
+                fill="none"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+
+          <button
+            v-if="hasPrev"
+            type="button"
+            class="modal__step modal__step--prev"
+            aria-label="Previous clip"
+            @click="emit('prev')"
+          >
+            ‹
+          </button>
+          <button
+            v-if="hasNext"
+            type="button"
+            class="modal__step modal__step--next"
+            aria-label="Next clip"
+            @click="emit('next')"
+          >
+            ›
+          </button>
+        </div>
+
+        <div
           v-if="src"
-          ref="videoEl"
-          :src="src"
-          :poster="poster ?? undefined"
-          autoplay
-          playsinline
-          preload="metadata"
-          class="modal__video"
-          @timeupdate="onTimeUpdate"
-          @play="isPlaying = true"
-          @pause="isPlaying = false"
-          @ended="onEnded"
-          @click="togglePlay"
-        />
-        <p
-          v-else
-          class="modal__unavailable"
+          class="modal__controls"
         >
-          Media is not configured, so this clip cannot play.
-        </p>
-
-        <button
-          type="button"
-          class="modal__close"
-          aria-label="Close"
-          @click="emit('close')"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="16"
-            height="16"
-            aria-hidden="true"
+          <button
+            type="button"
+            class="modal__control"
+            :aria-label="isPlaying ? 'Pause' : 'Play'"
+            @click="togglePlay"
           >
-            <path
-              d="M4 4l8 8M12 4l-8 8"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
+            <span aria-hidden="true">{{ isPlaying ? '❚❚' : '▶' }}</span>
+          </button>
 
-        <button
-          v-if="hasPrev"
-          type="button"
-          class="modal__step modal__step--prev"
-          aria-label="Previous clip"
-          @click="emit('prev')"
-        >
-          ‹
-        </button>
-        <button
-          v-if="hasNext"
-          type="button"
-          class="modal__step modal__step--next"
-          aria-label="Next clip"
-          @click="emit('next')"
-        >
-          ›
-        </button>
-      </div>
-
-      <div
-        v-if="src"
-        class="modal__controls"
-      >
-        <button
-          type="button"
-          class="modal__control"
-          :aria-label="isPlaying ? 'Pause' : 'Play'"
-          @click="togglePlay"
-        >
-          <span aria-hidden="true">{{ isPlaying ? '❚❚' : '▶' }}</span>
-        </button>
-
-        <label
-          class="visually-hidden"
-          :for="`modal-seek-${item.id}`"
-        >Seek</label>
-        <input
-          :id="`modal-seek-${item.id}`"
-          class="modal__seek"
-          type="range"
-          min="0"
-          max="100"
-          step="0.1"
-          :value="progress"
-          @input="seek"
-        >
-
-        <span class="modal__time">
-          {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-        </span>
-
-        <button
-          type="button"
-          class="modal__control"
-          :aria-pressed="muted"
-          :aria-label="muted ? 'Unmute' : 'Mute'"
-          @click="toggleMute"
-        >
-          <span aria-hidden="true">{{ muted ? '🔇' : '🔊' }}</span>
-        </button>
-
-        <button
-          type="button"
-          class="modal__control"
-          :class="{ 'modal__control--on': isBookmarked }"
-          :aria-pressed="isBookmarked"
-          :aria-label="isBookmarked ? 'Remove from saved' : 'Save this clip'"
-          @click="archive.toggleBookmark(item.id)"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="13"
-            height="13"
-            aria-hidden="true"
+          <label
+            class="visually-hidden"
+            :for="`modal-seek-${item.id}`"
+          >Seek</label>
+          <input
+            :id="`modal-seek-${item.id}`"
+            class="modal__seek"
+            type="range"
+            min="0"
+            max="100"
+            step="0.1"
+            :value="progress"
+            @input="seek"
           >
-            <path
-              d="M4 2h8v12l-4-3-4 3z"
-              stroke="currentColor"
-              stroke-width="1.3"
-              :fill="isBookmarked ? 'currentColor' : 'none'"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
 
-        <button
-          type="button"
-          class="modal__toggle"
-          :class="{ 'modal__toggle--on': autoNext }"
-          :aria-pressed="autoNext"
-          @click="autoNext = !autoNext"
-        >
-          Auto-next
-        </button>
+          <span class="modal__time">
+            {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+          </span>
 
-        <button
-          type="button"
-          class="modal__control"
-          :aria-pressed="isFullscreen"
-          :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
-          @click="toggleFullscreen"
-        >
-          <span aria-hidden="true">{{ isFullscreen ? '⤡' : '⤢' }}</span>
-        </button>
+          <button
+            type="button"
+            class="modal__control"
+            :aria-pressed="muted"
+            :aria-label="muted ? 'Unmute' : 'Mute'"
+            @click="toggleMute"
+          >
+            <span aria-hidden="true">{{ muted ? '🔇' : '🔊' }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="modal__control"
+            :class="{ 'modal__control--on': isBookmarked }"
+            :aria-pressed="isBookmarked"
+            :aria-label="isBookmarked ? 'Remove from saved' : 'Save this clip'"
+            @click="archive.toggleBookmark(item.id)"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 2h8v12l-4-3-4 3z"
+                stroke="currentColor"
+                stroke-width="1.3"
+                :fill="isBookmarked ? 'currentColor' : 'none'"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="modal__toggle"
+            :class="{ 'modal__toggle--on': autoNext }"
+            :aria-pressed="autoNext"
+            @click="autoNext = !autoNext"
+          >
+            Auto-next
+          </button>
+
+          <button
+            type="button"
+            class="modal__control"
+            :aria-pressed="isFullscreen"
+            :aria-label="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
+            @click="toggleFullscreen"
+          >
+            <span aria-hidden="true">{{ isFullscreen ? '⤡' : '⤢' }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="modal__meta">
@@ -451,33 +453,81 @@ watch(() => props.item.id, () => {
    no-backdrop-filter fallback. Every modal backdrop on the site is the same
    surface, so this one overrides none of it. */
 
+/*
+ * Video on the left, metadata on the right — and the whole point of the layout
+ * is that NEITHER moves when the clip changes.
+ *
+ * The width is capped by the viewport HEIGHT as well as its width, so that a
+ * strictly 16:9 stage always fits inside `92svh` without the stage having to
+ * give up its ratio to a max-height. Solving it here means the ratio below can
+ * be unconditional, which is what actually stops the jump.
+ */
 .modal__panel {
+  --modal-meta: 19rem;
+  --modal-chrome: 3rem; /* the controls strip under the video */
+
   position: relative;
-  inline-size: min(72rem, 100%);
-  max-block-size: 92svh;
-  overflow-y: auto;
+  inline-size: min(
+    72rem,
+    100%,
+    calc((92svh - var(--modal-chrome)) * 16 / 9 + var(--modal-meta))
+  );
   background: var(--surface-raised);
   border: 1px solid var(--rule);
+
+  /* The panel never scrolls; the metadata column does. A scrolling panel would
+     move the video when a long description arrived. */
+  overflow: hidden;
 }
 
+/*
+ * The metadata is taken OUT OF FLOW rather than made a grid column, and that is
+ * the difference between the video not resizing and the video not MOVING.
+ *
+ * As a grid or flex item it still contributes to the row height, so a clip with
+ * a 500-character description made the panel 40px taller than one without —
+ * the stage kept its size but shifted vertically, because the panel is centred
+ * in the viewport. Absolutely positioned, the column fills whatever height the
+ * video column establishes and scrolls inside it, so nothing the metadata does
+ * can reach the player.
+ */
+.modal__main {
+  inline-size: calc(100% - var(--modal-meta));
+  min-inline-size: 0;
+}
+
+/*
+ * Unconditional 16:9.
+ *
+ * Without it the stage took its height from the video's intrinsic size, so it
+ * resized twice over: once when the poster gave way to the decoded video, and
+ * again on every clip with a different shape. `contain` letterboxes whatever
+ * does not match, which is the correct trade — the framing of the work is part
+ * of the work, and a stable frame is worth more than a filled one.
+ */
 .modal__stage {
   position: relative;
+  aspect-ratio: 16 / 9;
   background: var(--surface-sunken);
 }
 
 .modal__video {
+  display: block;
   inline-size: 100%;
-  max-block-size: 68svh;
+  block-size: 100%;
   object-fit: contain;
   cursor: pointer;
 }
 
+/* Fills the same 16:9 stage, so a clip with no media does not resize it either. */
 .modal__unavailable {
   display: grid;
   place-items: center;
-  min-block-size: 20rem;
+  block-size: 100%;
+  padding: var(--space-m);
+  text-align: center;
   color: var(--ink-faint);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .modal__close {
@@ -550,20 +600,43 @@ watch(() => props.item.id, () => {
   border-color: var(--accent);
 }
 
+/*
+ * The metadata column, and the reason the type is a step smaller than it looks
+ * like it should be.
+ *
+ * Clip titles here are raw filenames — some are three words, some run to a
+ * hundred characters — and descriptions vary just as much. At the old sizes a
+ * long one pushed the column taller than the video and grew the panel, so the
+ * player moved every time you pressed Next. Smaller type plus a fixed-width
+ * column that scrolls on its own means the panel's size is set by the video
+ * alone and nothing the metadata does can shift it.
+ */
 .modal__meta {
-  padding: var(--space-m) var(--space-l) var(--space-l);
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: var(--modal-meta);
+
+  padding: var(--space-m) var(--space-m) var(--space-l);
+  border-inline-start: 1px solid var(--rule);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal__name {
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   line-height: var(--leading-snug);
   letter-spacing: 0;
+  /* Filenames arrive as one unbroken token often enough that this is not
+     optional in a 19rem column. */
+  overflow-wrap: anywhere;
 }
 
 .modal__source {
   margin-block-start: var(--space-2xs);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--ink-muted);
+  overflow-wrap: anywhere;
 }
 
 .modal__dim {
@@ -589,13 +662,39 @@ watch(() => props.item.id, () => {
 
 .modal__description {
   margin-block-start: var(--space-m);
-  max-inline-size: var(--measure);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
   color: var(--ink-muted);
 }
 
 .modal__link {
   margin-block-start: var(--space-s);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Below the two-column threshold the metadata goes back under the video. A
+ * 19rem column beside a video on a phone leaves neither of them usable.
+ */
+@media (width < 52rem) {
+  .modal__panel {
+    inline-size: min(72rem, 100%);
+    max-block-size: 92svh;
+    overflow-y: auto;
+  }
+
+  .modal__main {
+    inline-size: 100%;
+  }
+
+  /* Back into the flow, under the video. */
+  .modal__meta {
+    position: static;
+    inline-size: auto;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--rule);
+    overflow-y: visible;
+  }
 }
 </style>
