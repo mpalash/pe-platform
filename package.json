@@ -27,8 +27,7 @@
     "directus:prune": "tsx scripts/directus-prune-orphans.ts",
     "directus:seed-settings": "tsx scripts/seed-settings.ts",
     "archive:sources": "tsx scripts/build-sources.ts",
-    "archive:pool": "tsx scripts/build-ambient-pool.ts",
-    "media:hls": "bash scripts/media/hls.sh"
+    "archive:pool": "tsx scripts/build-ambient-pool.ts"
   },
   "dependencies": {
     "@directus/sdk": "^25.0.0",

@@ -41,7 +41,6 @@ pnpm directus:prune        # report orphaned block items (--delete to remove)
 pnpm seed:pages            # seed the editorial pages and their blocks
 pnpm archive:sources       # rebuild server/assets/sources.json (runs on build)
 pnpm archive:pool          # resample the ambient clip pool (runs on build)
-pnpm media:hls             # package archive MP4s to HLS in S3 (--selftest, --limit N, resumable)
 ```
 
 Mailpit web UI: http://localhost:8025 — this is where sign-in links arrive in development.
@@ -69,7 +68,6 @@ directus/
   migrations/          # committed schema snapshots
 scripts/
   import-slots.ts      # CSV/JSON bulk slot import
-  media/               # faststart checks/remux; HLS ladder when that day comes
 docs/plan/
 ```
 
