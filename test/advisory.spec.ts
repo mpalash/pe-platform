@@ -40,7 +40,12 @@ describe('the advisory cannot be dismissed by accident', () => {
   it('does not close when the scrim is clicked', () => {
     // The scrim carries no click handler at all — the only ways out are the
     // accept button and the decline link.
-    const scrim = code(modal).match(/<div\s+class="advisory-gate__scrim"[^>]*\/>/)
+    //
+    // Matched on the class list containing `advisory-gate__scrim` rather than
+    // equalling it: the element also wears the shared `.scrim` class, and a
+    // pattern pinned to one exact attribute value fails when a second class is
+    // added, which looks like the handler assertion breaking.
+    const scrim = code(modal).match(/<div[^>]*class="[^"]*advisory-gate__scrim[^"]*"[^>]*\/>/)
 
     expect(scrim, 'scrim element not found').toBeTruthy()
     expect(scrim![0]).not.toContain('@click')

@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
     @keydown="onKeydown"
   >
     <div
-      class="auth__scrim"
+      class="auth__scrim scrim"
       @click="authModal.close()"
     />
 
@@ -292,10 +292,11 @@ onBeforeUnmount(() => {
   padding: var(--space-m);
 }
 
+/* Positioning, blur and fallback come from `.scrim` in primitives.css.
+   Lowered from the old flat 88%: at that opacity the blur behind it would not
+   be visible at all, and an invisible blur is just a slower scrim. */
 .auth__scrim {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--surface-sunken) 88%, transparent);
+  --scrim-opacity: 78%;
 }
 
 .auth__panel {

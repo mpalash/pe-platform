@@ -219,7 +219,7 @@ watch(() => props.item.id, () => {
     @keydown="onKeydown"
   >
     <div
-      class="modal__scrim"
+      class="modal__scrim scrim"
       @click="emit('close')"
     />
 
@@ -447,10 +447,12 @@ watch(() => props.item.id, () => {
   padding: var(--space-m);
 }
 
+/* Positioning, blur and fallback come from `.scrim` in primitives.css. Denser
+   and blurrier than the others: this modal is itself a video, and a legible
+   archive behind a playing clip competes with it. */
 .modal__scrim {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--surface-sunken) 92%, transparent);
+  --scrim-opacity: 86%;
+  --scrim-blur: 20px;
 }
 
 .modal__panel {

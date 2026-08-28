@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
       No click handler. Dismissing a content warning by clicking beside it is
       not consent, it is an accident.
     -->
-    <div class="advisory-gate__scrim" />
+    <div class="advisory-gate__scrim scrim" />
 
     <div class="advisory-gate__panel">
       <Stack space="m">
@@ -162,28 +162,16 @@ onBeforeUnmount(() => {
 }
 
 /*
- * The blur lives here rather than as a `filter` on the archive itself.
+ * Positioning, blur and fallback come from `.scrim` in primitives.css.
  *
- * `backdrop-filter` blurs whatever is behind the scrim without touching the
- * subtree, which matters when that subtree can be a 30,000-instance WebGL
- * canvas — a `filter` on that would force it through an extra full-screen
- * render target every frame.
+ * The lightest and blurriest of the three, deliberately: the archive is loading
+ * behind this, and it should be visible as movement and shape — evidence that
+ * waiting is not what accepting will cost — without being legible as content
+ * nobody has consented to see yet.
  */
 .advisory-gate__scrim {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--surface-sunken) 72%, transparent);
-  backdrop-filter: blur(18px) saturate(0.6);
-}
-
-/*
- * A browser without backdrop-filter gets an almost-opaque scrim instead. The
- * blur is an aesthetic; the material behind it not being legible is not.
- */
-@supports not (backdrop-filter: blur(1px)) {
-  .advisory-gate__scrim {
-    background: color-mix(in srgb, var(--surface-sunken) 97%, transparent);
-  }
+  --scrim-opacity: 72%;
+  --scrim-blur: 18px;
 }
 
 .advisory-gate__panel {

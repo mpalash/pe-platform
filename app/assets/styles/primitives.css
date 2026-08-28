@@ -324,3 +324,53 @@
     transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SCRIM — the layer between a modal and the page behind it.
+
+   Three modals use this (auth, archive player, archive advisory) and each used
+   to declare its own. The blur in particular is not worth writing three times:
+   it needs a paired @supports fallback, and the copy that forgets it degrades
+   to a see-through overlay on the browsers that need help most.
+
+   Tuned per modal through the two custom properties rather than by overriding
+   the declarations.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.scrim {
+  /*
+   * Opacity and blur trade against each other. Past about 90% the layer is
+   * effectively opaque and the blur behind it is invisible — so a scrim that
+   * wants to obscure heavily should reach for opacity, and one that wants the
+   * page to stay legible as shape and movement should lean on the blur.
+   */
+  --scrim-opacity: 80%;
+  --scrim-blur: 14px;
+
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-sunken) var(--scrim-opacity), transparent);
+
+  /*
+   * `backdrop-filter`, not a `filter` on the page: it blurs what is behind
+   * without touching that subtree, which matters when the subtree can be a
+   * 30,000-instance WebGL canvas — a filter there forces an extra full-screen
+   * render target every frame.
+   *
+   * Desaturating alongside the blur stops bright content bleeding through as
+   * colour blotches, which is what makes a blurred scrim read as frosted glass
+   * rather than as smeared video.
+   */
+  backdrop-filter: blur(var(--scrim-blur)) saturate(0.6);
+}
+
+/*
+ * Without backdrop-filter the scrim goes nearly opaque instead. The blur is an
+ * aesthetic; the page behind not being legible is not — a modal that assumes a
+ * blur and does not get one leaves the content it covers perfectly readable.
+ */
+@supports not (backdrop-filter: blur(1px)) {
+  .scrim {
+    background: color-mix(in srgb, var(--surface-sunken) 97%, transparent);
+  }
+}

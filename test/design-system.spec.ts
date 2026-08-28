@@ -378,3 +378,36 @@ describe('the modal steps to the next clip', () => {
     expect(stepWatcher).toMatch(/el\.load\(\)/)
   })
 })
+
+describe('modal scrims', () => {
+  /**
+   * The blur and its @supports fallback live in one place (`.scrim` in
+   * primitives.css) because the copy that forgets the fallback degrades to a
+   * see-through overlay on exactly the browsers that need help most — and a
+   * modal you can read straight through is not a modal.
+   *
+   * So: anything named like a scrim must actually be wearing the shared class.
+   */
+  const MODALS = [
+    'app/components/AuthModal.vue',
+    'app/components/archive/ArchiveModalPlayer.vue',
+    'app/components/archive/ArchiveAdvisoryModal.vue',
+  ]
+
+  for (const path of MODALS) {
+    it(`${path.split('/').pop()} uses the shared scrim`, () => {
+      const source = readFileSync(resolve(repoRoot, path), 'utf8')
+      const scrimClass = source.match(/class="[^"]*__scrim[^"]*"/)
+
+      expect(scrimClass, 'no scrim element found').toBeTruthy()
+      expect(scrimClass![0]).toContain(' scrim"')
+    })
+  }
+
+  it('the shared scrim blurs and has a fallback for browsers that cannot', () => {
+    const css = readFileSync(resolve(repoRoot, 'app/assets/styles/primitives.css'), 'utf8')
+
+    expect(css).toMatch(/\.scrim \{[\s\S]*?backdrop-filter: blur\(var\(--scrim-blur\)\)/)
+    expect(css).toMatch(/@supports not \(backdrop-filter: blur\(1px\)\)/)
+  })
+})
