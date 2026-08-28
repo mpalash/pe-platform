@@ -129,18 +129,25 @@ docs/plan/
     controls live in the toolbar via `useGalaxyControls`, not on the canvas, and
     the galaxy freezes while `useChromeDrag().dragging` is true.
 
-15. **The ambient player never appears on `/archive`,** which has its own
+15. **The archive's advisory is a consent gate, not a dialog.** No Escape, no
+    scrim-click, no close button — the only ways out are accepting or leaving.
+    The archive loads behind it so accepting costs no wait, which is safe only
+    because of two things that must stay: `:inert` on the content, and
+    `useActivePlayer.claim()` refusing until it is accepted. Copy lives in the
+    `archive_advisory` singleton. `test/advisory.spec.ts` guards all of it.
+
+16. **The ambient player never appears on `/archive`,** which has its own
     players and its own advisory gate. Per-page control is the Directus field
     `pages.show_ambient_video`, defaulting to true; it reaches the layout
     through `useAmbientVideo`, keyed by path so one page's setting cannot leak
     to a route that has no opinion.
 
-16. **The galaxy's constants are checked by `test/galaxy.spec.ts`.** Camera rest
+17. **The galaxy's constants are checked by `test/galaxy.spec.ts`.** Camera rest
     distance against the radius, facing and distance hysteresis, atlas cell
     aspect. Every one of those fails silently in the browser, so if a change
     there makes a test fail, the test is probably right.
 
-17. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
+18. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
 ## Content sources
@@ -168,6 +175,11 @@ have to be named in `scripts/seed-settings.ts`.
   and from `.output/public` in a build, and `$fetch('/data/x.json')` 404s on the
   server in development. Anything the server needs to read goes in
   `server/assets/` and comes back through `useStorage('assets:server')`.
+
+- **The ambient pool is Peace-only** (`ALLOWED_BINS` in
+  `scripts/build-ambient-pool.ts`). The player has no advisory in front of it,
+  so it must not draw from the war end — that is the whole reason the archive
+  has a gate and this does not need one.
 
 - **`srcName` in the archive data is noisy.** 1,282 distinct values, but some
   works appear several times with per-clip identifiers in the name (numeric

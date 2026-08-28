@@ -27,15 +27,26 @@ const POOL_SIZE = 200
 const POOL_SEED = 20260828
 
 /**
- * Which bins may appear. Empty means the whole scale, Peace-05 through War-10,
- * which is what "random from the archive" means literally.
+ * Which bins may appear. Empty would mean the whole scale.
  *
- * Worth knowing before changing it: /archive puts an advisory gate in front of
- * this material, and the ambient player does not — it starts on load. Narrowing
- * this to the peaceful end is a one-line change here if that trade is ever
- * judged the wrong way round.
+ * Restricted to the peaceful end, and the reason is consent. /archive puts an
+ * advisory in front of its material; the ambient player has no such gate — it
+ * starts on load, on pages nobody visited to see violence. Drawing from the
+ * whole scale would autoplay War-10 footage at a first-time reader of the About
+ * page, which is precisely what the advisory exists to prevent elsewhere.
+ *
+ * Peace-05 through Peace-01. War-01 is deliberately excluded rather than
+ * included as a soft edge: the boundary should sit where the naming says it
+ * does, so that "the peaceful end" means the same thing here as on the
+ * intensity scale in the toolbar.
  */
-const ALLOWED_BINS: readonly string[] = []
+const ALLOWED_BINS: readonly string[] = [
+  'Peace-05',
+  'Peace-04',
+  'Peace-03',
+  'Peace-02',
+  'Peace-01',
+]
 
 /** Mulberry32 — small, seeded, and good enough to shuffle a list once. */
 function random(seed: number): () => number {

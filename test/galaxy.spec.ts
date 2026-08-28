@@ -134,10 +134,22 @@ describe('galaxy controls', () => {
 describe('ambient clip pool', () => {
   const pool = JSON.parse(
     readFileSync(resolve(repoRoot, 'server/assets/ambient-pool.json'), 'utf8'),
-  ) as Array<{ id: string, filename: string }>
+  ) as Array<{ id: string, filename: string, bin: string | null }>
 
   it('is populated', () => {
     expect(pool.length).toBeGreaterThan(50)
+  })
+
+  /**
+   * The player has no advisory in front of it — it starts on load, on pages
+   * nobody visited to see violence. Drawing from the whole scale would autoplay
+   * War-10 footage at a first-time reader of the About page, which is exactly
+   * what the archive's own advisory exists to prevent.
+   */
+  it('contains only peaceful bins', () => {
+    const bins = new Set(pool.map(clip => clip.bin))
+
+    expect([...bins].every(bin => bin?.startsWith('Peace-'))).toBe(true)
   })
 
   /** A clip with no filename renders as a black box rather than being skipped. */

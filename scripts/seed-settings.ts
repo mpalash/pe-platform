@@ -88,6 +88,33 @@ const NAV_LINKS = [
   { label: 'Disclaimers', path: '/disclaimers', external: false },
 ]
 
+/**
+ * The archive's content warning.
+ *
+ * Seeded from the copy that used to be hard-coded into the archive page. It
+ * lives in Directus now because it is an ethical statement about the material,
+ * and changing what a content warning says should not require a deploy.
+ */
+const ARCHIVE_ADVISORY: Record<string, unknown> = {
+  title: 'Before you enter',
+  lede: 'Over 30,000 clips excerpted from around 800 sources. The material is documented recordings of actual events.',
+  body:
+    '<p>This archive contains depictions of war, its aftermath, death, injury, state and '
+    + 'interpersonal violence, ecological catastrophe, and cruelty to people and animals. '
+    + 'Clips play automatically as you scroll.</p>'
+    + '<p>The full advisory is on the <a href="/disclaimers">disclaimers page</a>.</p>',
+  detail:
+    'War and armed conflict, and their aftermath. Death, human remains, and injury. '
+    + 'State violence, including police violence and execution. Interpersonal and domestic '
+    + 'violence. Self-harm and suicide. Ecological catastrophe, including fire, flood and '
+    + 'industrial disaster. Cruelty to animals, including slaughter. Medical procedures and '
+    + 'bodily trauma. Distressing depictions of children.',
+  detail_label: 'The full list of depicted content',
+  accept_label: 'Enter the archive',
+  decline_label: 'Not now',
+  decline_path: '/',
+}
+
 function isEmpty(value: unknown): boolean {
   if (value === null || value === undefined) return true
   if (typeof value === 'string') return value.trim() === ''
@@ -116,6 +143,24 @@ async function main(): Promise<void> {
   }
 
   if (kept.length > 0) console.log(`  · left alone (already set): ${kept.join(', ')}`)
+
+  const advisory = await api<Record<string, unknown>>('/items/archive_advisory')
+  const advisoryPayload: Record<string, unknown> = {}
+
+  for (const [field, value] of Object.entries(ARCHIVE_ADVISORY)) {
+    if (force || isEmpty(advisory?.[field])) advisoryPayload[field] = value
+  }
+
+  if (Object.keys(advisoryPayload).length > 0) {
+    await api('/items/archive_advisory', {
+      method: 'PATCH',
+      body: JSON.stringify(advisoryPayload),
+    })
+    console.log(`  + archive_advisory: ${Object.keys(advisoryPayload).join(', ')}`)
+  }
+  else {
+    console.log('  = archive_advisory: nothing empty to fill')
+  }
 
   const nav = await api<Record<string, unknown>>('/items/navigation')
 

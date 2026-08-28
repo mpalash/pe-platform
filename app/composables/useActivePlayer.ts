@@ -15,7 +15,21 @@ export function useActivePlayer() {
    */
   const muted = useState<boolean>('archive:muted', () => true)
 
+  const advisory = useArchiveAdvisory()
+
+  /**
+   * Refused while the content warning is still up.
+   *
+   * The archive now loads BEHIND the advisory so it is ready the moment someone
+   * accepts, and this is the line between loading and showing. Without it the
+   * feed would start playing documented violence behind a blur, which is
+   * exactly the thing the warning is asking about.
+   *
+   * Enforced here rather than in the feed so that any future caller inherits
+   * it — a second player that forgot would reintroduce the problem silently.
+   */
   function claim(id: string): void {
+    if (!advisory.accepted.value) return
     currentId.value = id
   }
 

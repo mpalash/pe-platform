@@ -685,6 +685,21 @@ async function main(): Promise<void> {
     },
   ])
 
+  await ensureCollection('archive_advisory', {
+    icon: 'warning',
+    singleton: true,
+    note: 'The content warning shown over the archive before anyone can use it. Editable here because it is an ethical statement, not layout — it should not need a deploy to change.',
+  }, [
+    text('title', { required: true, note: 'Heading of the modal, e.g. Before you enter.' }),
+    text('lede', { note: 'One line under the heading. Scale of the archive, usually.' }),
+    richtext('body', 'The warning itself. This is the part someone has to be able to read before deciding.'),
+    longText('detail', 'Optional full list of depicted content, shown inside a disclosure so it does not wall off the modal.'),
+    text('detail_label', { note: 'Label for the disclosure, e.g. "The full list of depicted content".' }),
+    text('accept_label', { note: 'The button that dismisses the warning. Defaults to "Enter the archive".' }),
+    text('decline_label', { note: 'The way out. Defaults to "Not now".' }),
+    text('decline_path', { note: 'Where the way out goes. Defaults to /.' }),
+  ])
+
   await ensureCollection('navigation', {
     icon: 'menu',
     singleton: true,

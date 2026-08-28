@@ -22,7 +22,7 @@ const media = useMediaConfigured()
 const selection = useArchiveSelection()
 const { view } = useArchiveView()
 
-const advisoryAccepted = useState('archive:advisoryAccepted', () => false)
+const advisory = useArchiveAdvisory()
 
 onMounted(async () => {
   archive.loadBookmarks()
@@ -33,58 +33,23 @@ onMounted(async () => {
 <template>
   <div class="archive">
     <!--
-      The advisory comes before the archive, not alongside it. This is material
-      documenting violence; someone should be able to decide not to see it
-      before it starts playing. Phase 4 made block_advisory a first-class type
-      for the same reason.
+      The archive renders and loads WHILE the advisory is up, which is the
+      point of making the advisory a modal: the dataset, the thumbnails and the
+      first clips are all in flight while it is being read, so accepting costs
+      no wait.
+
+      `inert` is what makes that safe. It removes the whole subtree from the tab
+      order and the accessibility tree, so nothing behind the warning can be
+      reached by keyboard or read by a screen reader before it is accepted —
+      the blur only handles the visual half of that.
+
+      Nothing PLAYS in the meantime either: useActivePlayer refuses to claim a
+      clip until the advisory is accepted.
     -->
-    <section
-      v-if="!advisoryAccepted"
-      class="gate"
+    <div
+      class="archive__content"
+      :inert="!advisory.accepted.value"
     >
-      <Center>
-        <Stack space="m">
-          <h1>The Archive</h1>
-
-          <p class="gate__lede">
-            Over 30,000 clips excerpted from around 800 sources. The material is documented
-            recordings of actual events.
-          </p>
-
-          <aside class="gate__advisory">
-            <p>
-              This archive contains depictions of war, its aftermath, death, injury, state and
-              interpersonal violence, ecological catastrophe, and cruelty to people and animals.
-              Clips play automatically as you scroll.
-            </p>
-            <p>
-              <NuxtLink to="/disclaimers">
-                The full advisory and the list of depicted content
-              </NuxtLink>
-              is on the disclaimers page.
-            </p>
-          </aside>
-
-          <Cluster space="s">
-            <button
-              type="button"
-              class="gate__enter"
-              @click="advisoryAccepted = true"
-            >
-              Enter the archive
-            </button>
-            <NuxtLink
-              to="/"
-              class="gate__leave"
-            >
-              Not now
-            </NuxtLink>
-          </Cluster>
-        </Stack>
-      </Center>
-    </section>
-
-    <template v-else>
       <ArchiveToolbar />
 
       <Center
@@ -155,70 +120,21 @@ onMounted(async () => {
         @prev="selection.prev()"
         @next="selection.next()"
       />
-    </template>
+    </div>
+
+    <ClientOnly>
+      <ArchiveAdvisoryModal v-if="!advisory.accepted.value" />
+    </ClientOnly>
   </div>
 </template>
 
 <style scoped>
-.gate {
-  /* Extra at the top for the floating header, which overlays this. */
-  padding-block: var(--space-4xl) var(--space-3xl);
-}
-
-.gate__lede {
-  font-size: var(--text-md);
-  line-height: var(--leading-snug);
-  color: var(--ink-muted);
-}
-
-.gate__advisory {
-  border-inline-start: 2px solid var(--accent);
-  padding-inline-start: var(--space-l);
-  color: var(--ink-muted);
-}
-
-.gate__advisory p + p {
-  margin-block-start: var(--space-s);
-}
-
-.gate__enter {
-  background: var(--accent);
-  color: var(--ink-inverse);
-  padding: var(--space-xs) var(--space-l);
-  font-weight: var(--weight-medium);
-}
-
-.gate__leave {
-  padding: var(--space-xs) var(--space-s);
-  font-size: var(--text-sm);
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-
-.gate__leave:hover {
-  color: var(--ink);
-}
-
-.notice {
-  /* The column is flush so the grid can reach the edges; text still needs
-     the gutter back, or it runs into the window edge. */
-  padding-inline: var(--space-gutter);
-  padding-block: var(--space-s);
-  font-size: var(--text-xs);
-  color: var(--ink-faint);
-}
-
-.notice--warn {
-  color: var(--accent);
-}
-
 /*
- * Full-bleed, and as tall as what is left of the window.
- *
- * 100svh rather than 100vh so mobile browser chrome does not push the bottom of
- * the galaxy under the address bar. The subtraction is the header plus the
- * sticky toolbar above it.
+ * The advisory used to be a section here that replaced the archive. It is a
+ * modal now (ArchiveAdvisoryModal), so its styles moved with it — leaving the
+ * gate rules behind would be dead CSS that looks load-bearing.
  */
+
 .archive__galaxy {
   /*
    * The full window. Both the header and the toolbar float over the archive
