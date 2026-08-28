@@ -13,6 +13,9 @@ dist
 .env.*
 !.env.example
 
+# hls packaging run: work dir, manifests, staged clips
+.hls-work
+
 # local tooling
 .DS_Store
 *.log
