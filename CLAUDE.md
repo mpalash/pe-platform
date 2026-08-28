@@ -176,6 +176,15 @@ have to be named in `scripts/seed-settings.ts`.
   server in development. Anything the server needs to read goes in
   `server/assets/` and comes back through `useStorage('assets:server')`.
 
+- **`defineCachedEventHandler` persists to `.nuxt/cache/nitro/handlers/` on
+  disk, and that survives a dev-server restart.** Both artefact routes
+  (`ambient-pool`, `sources`) therefore carry
+  `shouldBypassCache: () => import.meta.dev`. Without it, regenerating an
+  artefact leaves the API serving the previous one for an hour of wall-clock
+  time no restart resets — it looks exactly like the build script not working.
+  **Check the served response, not the file on disk, when verifying an
+  artefact change.**
+
 - **The ambient pool is Peace-only** (`ALLOWED_BINS` in
   `scripts/build-ambient-pool.ts`). The player has no advisory in front of it,
   so it must not draw from the war end — that is the whole reason the archive

@@ -26,6 +26,20 @@ export default defineCachedEventHandler(async (): Promise<AmbientClip[]> => {
 
   return pool
 }, {
+  /*
+   * Never cached in development.
+   *
+   * `defineCachedEventHandler` persists to `.nuxt/cache/nitro/handlers/` ON
+   * DISK, and that survives a dev-server restart. Since this route serves a
+   * BUILD ARTEFACT, rebuilding the artefact leaves the cache holding the old
+   * one — for an hour of wall-clock time that no restart resets. The symptom is
+   * a regenerated file that the site refuses to reflect, which reads as the
+   * build script not having worked.
+   *
+   * Same reasoning as the `/**` routeRule in nuxt.config.ts: the window is
+   * correct in production and actively misleading locally.
+   */
+  shouldBypassCache: () => import.meta.dev,
   maxAge: 60 * 60,
   name: 'archive-ambient-pool',
   getKey: () => 'ambient-pool',

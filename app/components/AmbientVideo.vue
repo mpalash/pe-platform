@@ -54,6 +54,20 @@ const clip = ref<AmbientClip | null>(null)
 const video = useTemplateRef<HTMLVideoElement>('video')
 const playing = ref(false)
 
+/** 0–1. Drives the progress bar and nothing else. */
+const progress = ref(0)
+
+function onTimeUpdate(): void {
+  const el = video.value
+  if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return
+
+  progress.value = el.currentTime / el.duration
+
+  // Recorded every tick so an unmount mid-clip — routing through /archive —
+  // has somewhere to resume from without needing its own teardown hook.
+  if (clip.value) ambient.resume.value = { id: clip.value.id, time: el.currentTime }
+}
+
 const source = computed(() => usePlaybackSource(clip.value?.filename))
 
 /** A different clip from the one showing, so "next" always visibly changes. */
@@ -105,7 +119,18 @@ function toggle(): void {
   }
 }
 
+/**
+ * A clip that cannot load would otherwise stall the player permanently: `ended`
+ * never fires for a source that 404s or fails to decode, so auto-next never
+ * advances and the frame sits black until the page is reloaded. Treating an
+ * error as the end of the clip skips it.
+ */
+function onError(): void {
+  onEnded()
+}
+
 function onEnded(): void {
+  progress.value = 0
   pickClip()
   // The source changed, so the element has to be told to load it before it
   // will play — this is the same trap the archive's modal player had.
@@ -138,8 +163,36 @@ onMounted(async () => {
     return
   }
 
-  pickClip()
+  /*
+   * Resume the clip that was playing before, if there was one.
+   *
+   * This is the whole of "keeps playing across pages" for the case that
+   * actually breaks. Between ordinary pages the component is never unmounted
+   * and nothing here runs; it is the round trip through /archive — or any page
+   * with the toggle off — that lands back here, and without this it would
+   * restart on a different clip.
+   */
+  const previous = ambient.resume.value
+  const remembered = previous && pool.value.find(item => item.id === previous.id)
+
+  if (remembered) clip.value = remembered
+  else pickClip()
+
   await nextTick()
+
+  if (remembered && previous) {
+    const el = video.value
+    if (el) {
+      // Seeking before any data has loaded is discarded, so it waits for the
+      // metadata that carries `duration` and the seekable range.
+      const seek = (): void => {
+        el.currentTime = previous.time
+      }
+      if (el.readyState >= 1) seek()
+      else el.addEventListener('loadedmetadata', seek, { once: true })
+    }
+  }
+
   if (!reducedMotion.value) void start()
 })
 </script>
@@ -220,9 +273,26 @@ onMounted(async () => {
       preload="metadata"
       :title="clip?.name"
       @ended="onEnded"
+      @error="onError"
+      @timeupdate="onTimeUpdate"
       @play="playing = true"
       @pause="playing = false"
     />
+
+    <!--
+      aria-hidden: it reports the same thing the <video> already does, it
+      changes several times a second, and it cannot be interacted with — three
+      good reasons not to put it in the accessibility tree.
+    -->
+    <div
+      class="ambient__progress"
+      aria-hidden="true"
+    >
+      <div
+        class="ambient__progress-bar"
+        :style="{ transform: `scaleX(${progress})` }"
+      />
+    </div>
   </aside>
 </template>
 
@@ -276,6 +346,24 @@ onMounted(async () => {
   margin-inline-start: auto;
   font-size: var(--text-sm);
   line-height: 1;
+}
+
+.ambient__progress {
+  block-size: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.ambient__progress-bar {
+  block-size: 100%;
+  background: var(--accent);
+  /*
+   * scaleX from the left edge rather than animating `inline-size`: a transform
+   * is a compositor operation, and this updates several times a second on
+   * every page the player appears on.
+   */
+  transform-origin: left center;
+  will-change: transform;
 }
 
 .ambient__video {

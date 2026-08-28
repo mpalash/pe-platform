@@ -37,8 +37,28 @@ export function useAmbientVideo() {
     allowedHere.value && !dismissed.value && (perPage.value[route.path] ?? true),
   )
 
+  /**
+   * The clip and position to resume from.
+   *
+   * The player is mounted in the layout and normally survives navigation
+   * outright — same element, same clip, uninterrupted. It does NOT survive
+   * routing through a page where it is hidden: /archive, or any page with the
+   * CMS toggle off. Those unmount the component, and remounting it picks a
+   * fresh clip from zero.
+   *
+   * Holding the position out here instead means the round trip resumes where it
+   * left off rather than starting again, which is what "keeps playing across
+   * pages" has to mean if it is to survive the archive.
+   *
+   * Not persisted to storage: this is continuity within a visit, and resuming
+   * a stranger's half-watched clip on a fresh load would be odd rather than
+   * seamless.
+   */
+  const resume = useState<{ id: string, time: number } | null>('ambient:resume', () => null)
+
   return {
     enabled,
+    resume,
     dismiss: () => { dismissed.value = true },
     /** Called by a page that has an authored answer for its own path. */
     setForPath: (path: string, value: boolean) => { perPage.value[path] = value },
