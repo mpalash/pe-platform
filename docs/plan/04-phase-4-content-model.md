@@ -213,9 +213,127 @@ the normal outcome of not testing it.
 ### 4.8 — Directus asset storage
 
 Point the Directus S3 adapter at the **assets** bucket from Phase 3 — never the archive bucket.
-Check current Directus docs for exact `STORAGE_*` variable names.
+Directus indexes and thumbnails what it owns; the archive is 30,000+ clips it must not touch.
 
-Verify: upload an image in the admin, confirm it lands in the assets bucket.
+The compose file carries the wiring already, switched off. `STORAGE_LOCATIONS` defaults to
+`local`, so a clone with no `.env` values runs on the `directus_uploads` volume and needs no
+AWS account (hard rule 2). Setting the `AWS_ASSETS_*` variables and flipping
+`DIRECTUS_STORAGE_LOCATIONS` is the whole switch.
+
+#### The bucket — `aam-pe-directus`
+
+Already existed in the account (448302912553), `eu-north-1`, alongside the archive bucket. It
+was empty at the time of wiring, so there was nothing to migrate and no key convention to
+inherit. State confirmed on 2026-08-28:
+
+| Setting | State | Note |
+|---|---|---|
+| Region | `eu-north-1` | Matches `aam-purgatory-archive` and DEPLOYMENT §7 |
+| Block Public Access | all four on | Nothing here is fetched from S3 by a browser |
+| Default encryption | SSE-S3 (AES256), bucket key on | Was already set |
+| Versioning | **enabled** | Was off; turned on, per DEPLOYMENT §8 |
+| Objects | 0 | |
+
+Directus streams files out through `/assets/<id>`, which is also where its image transforms
+happen, so the app's asset URLs are byte-identical either side of this switch. Nothing needs a
+bucket policy, a CORS rule or an ACL — only the IAM user below touches the bucket.
+
+**No key prefix.** `AWS_ASSETS_ROOT` is empty and objects sit at the bucket root, which is
+right for a bucket dedicated to Directus. A prefix would have to be kept in sync with the IAM
+policy's `Resource`, and changing it after files exist orphans them — cost with no benefit
+here.
+
+#### The IAM user — `directus-cms-s3-user`
+
+Named to match what the account already does (`payload-cms-s3-user` / `PayloadCMS-S3-Access`).
+Policy `DirectusCMS-S3-Access`, no console access, no MFA — it is a programmatic identity.
+
+Directus needs object read, write and delete, `ListBucket` for prefix listings, and the
+multipart permissions: its uploads are chunked, and without `AbortMultipartUpload` a failed
+upload leaves orphaned parts that are billed until a lifecycle rule reaps them.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::aam-pe-directus"
+    },
+    {
+      "Sid": "ObjectReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::aam-pe-directus/*"
+    }
+  ]
+}
+```
+
+That is the whole grant. The user cannot see the archive bucket, cannot change bucket settings,
+and cannot touch anything else in the account.
+
+#### The switch
+
+In `.env` (gitignored — the bucket name is committed nowhere else):
+
+```bash
+AWS_ASSETS_BUCKET=aam-pe-directus
+AWS_ASSETS_ACCESS_KEY_ID=…
+AWS_ASSETS_SECRET_ACCESS_KEY=…
+DIRECTUS_STORAGE_LOCATIONS=s3,local
+```
+
+then `docker compose up -d directus`.
+
+**Order in that list is the whole design.** The first location is where new uploads are
+written; the rest stay readable. Every file records the location it was written to in
+`directus_files.storage`, and Directus never rewrites that value — so `s3,local` sends new
+uploads to the bucket while everything already on disk keeps resolving, and reverting to
+`local` is a one-line rollback that leaves the S3 files readable as long as `s3` stays in the
+list. **Dropping `local` orphans every file uploaded before the switch.** They are not
+migrated; nothing migrates them.
+
+Migrating the existing local files, if that is ever wanted, means copying the volume's contents
+into the bucket and then `UPDATE directus_files SET storage = 's3'` — a deliberate job with a
+database write in it, not a side effect of changing an env var.
+
+#### Verified 2026-08-28
+
+Exercised through the admin's own session against the running local stack.
+
+| Check | Result |
+|---|---|
+| Upload after the switch | `storage: "s3"`, object in `s3://aam-pe-directus/<uuid>.png` |
+| Renders via `/assets/<id>` | 200, `image/png`, byte count matches the upload |
+| Transform `?width=80&fit=cover` | 200, 3.7 KB — and **written back to the bucket** as `<uuid>__<hash>.png` |
+| Direct S3 URL, unauthenticated | **403** — public through Directus is not a public bucket |
+| File uploaded *before* the switch | still 200 through `/assets/<id>` |
+| Delete in the admin | object gone from the current listing; prior version retained behind a delete marker |
+
+Two things that surfaced only by doing it:
+
+- **Derivatives live in the bucket too.** Every distinct transform Directus is asked for is
+  cached back to S3 as its own object. The bucket grows with the number of *variants*
+  requested, not the number of files uploaded. Not a problem at this size; worth knowing before
+  someone points a responsive `srcset` with eight widths at it.
+
+- **The container's outbound network is not open.** Directus's *import from URL* failed
+  (`Couldn't fetch file from URL`) against a public image while S3 itself worked fine. Whatever
+  is filtering egress lets AWS through. If import-from-URL is ever wanted in the admin, that is
+  the thing to chase — it is not a storage problem.
+
+Still worth doing: a lifecycle rule expiring **incomplete multipart uploads** after a few days.
+Directus uploads are chunked, and an aborted one leaves parts that are billed but invisible in a
+normal object listing.
 
 ### 4.9 — Build real pages
 
@@ -264,6 +382,10 @@ Every time you reach for `block_raw`, ask whether a real block type is hiding th
 
 ### Done
 
+- **§4.8, Directus asset storage — done 2026-08-28.** Uploads go to `s3://aam-pe-directus`
+  through the `s3` location, with `local` kept behind it so files written before the switch
+  still resolve. IAM user `directus-cms-s3-user`, scoped to that one bucket. Verified end to
+  end (table in §4.8), including that a direct S3 URL 403s.
 - **Six block types**, each justified by a real page (§4.1 outcome above). `block_raw` was
   never needed — usage is zero across all five pages, which is the signal §4.1 asked for.
 - **Page tree** with self-referencing `parent`; paths derived in `server/utils/pages.ts`, not
@@ -317,9 +439,6 @@ why `BlockRenderer` now renders a visible `BlockMissing` marker instead of faili
 
 ### Not done — and why
 
-- **§4.8, Directus asset storage.** Needs the S3 assets bucket from Phase 3, and there is no
-  AWS account wired up yet. Directus is on local disk storage; uploads work, they are simply
-  not in S3. **This is a real gap, not a decision.**
 - **Nested M2A (`block_columns`).** No intended page needs side-by-side blocks. The nesting
   ceiling is therefore still unmeasured — §4.3 asks for it to be verified before the model is
   declared sound, and that remains outstanding for whenever a page first wants it.

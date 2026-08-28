@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const compose = readFileSync(resolve(import.meta.dirname, '../docker-compose.yml'), 'utf8')
+const envExample = readFileSync(resolve(import.meta.dirname, '../.env.example'), 'utf8')
 
 /**
  * Hard rule 2: `docker compose up` plus `pnpm dev` is the entire local setup.
@@ -51,5 +52,49 @@ describe('local stack', () => {
 
     expect(services).toBe(3)
     expect(healthchecks).toBe(services)
+  })
+})
+
+/**
+ * Directus file storage. The S3 location exists in the compose file but must
+ * stay switched off by default — hard rule 2 says a fresh clone plus
+ * `docker compose up` is a complete environment with no cloud account.
+ */
+describe('file storage', () => {
+  it('defaults to the local driver, so no AWS account is needed to run the stack', () => {
+    expect(compose).toContain('STORAGE_LOCATIONS: ${DIRECTUS_STORAGE_LOCATIONS:-local}')
+    expect(envExample).toMatch(/^DIRECTUS_STORAGE_LOCATIONS=local$/m)
+  })
+
+  it('keeps `local` reachable in any documented multi-location value', () => {
+    // Files carry their location in directus_files.storage forever. A value
+    // that drops `local` orphans every file uploaded before the switch.
+    const documented = [...envExample.matchAll(/DIRECTUS_STORAGE_LOCATIONS=(\S+)/g)].map(m => m[1]!)
+
+    expect(documented.length).toBeGreaterThan(0)
+    for (const value of documented) {
+      expect(value.split(','), `${value} drops the local location`).toContain('local')
+    }
+  })
+
+  it('reads every S3 credential from the environment rather than hard-coding one', () => {
+    for (const key of ['STORAGE_S3_KEY', 'STORAGE_S3_SECRET', 'STORAGE_S3_BUCKET']) {
+      expect(compose).toMatch(new RegExp(`${key}: \\$\\{`))
+    }
+
+    // AKIA/ASIA prefixes are what a pasted AWS access key looks like.
+    const looksLikeAKey = /A[KS]IA[0-9A-Z]{16}/
+    expect(compose, 'docker-compose.yml holds an AWS key').not.toMatch(looksLikeAKey)
+    expect(envExample, '.env.example holds an AWS key').not.toMatch(looksLikeAKey)
+
+    expect(envExample).toMatch(/^AWS_ASSETS_ACCESS_KEY_ID=$/m)
+    expect(envExample).toMatch(/^AWS_ASSETS_SECRET_ACCESS_KEY=$/m)
+  })
+
+  it('does not set an ACL — the bucket stays private and Directus serves the file', () => {
+    // Hard rule 4 is about the archive being public without gating. This is the
+    // other bucket: a public-read ACL here would expose editor uploads at their
+    // S3 URL, bypassing /assets/ and its transforms.
+    expect(compose).not.toContain('STORAGE_S3_ACL')
   })
 })

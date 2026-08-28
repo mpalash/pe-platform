@@ -36,10 +36,22 @@ That is the entire setup. Four commands.
 
 Mailpit is where sign-in links arrive in development. Nothing leaves the machine.
 
+### Editor uploads and S3
+
+Directus writes uploaded images to the `directus_uploads` volume by default, so the setup above
+needs no AWS account. To put new uploads in the S3 assets bucket instead, fill the
+`AWS_ASSETS_*` variables in `.env` and set `DIRECTUS_STORAGE_LOCATIONS=s3,local`.
+
+Keep `local` in that list. The first location is where new uploads go; the rest stay readable,
+and each file remembers where it was written. Dropping `local` orphans everything uploaded
+before the switch. Bucket settings, the IAM policy and the verification steps are in
+`docs/plan/04-phase-4-content-model.md` §4.8.
+
 ### Wiping and reseeding
 
 ```bash
 docker compose down -v     # drops the volumes: database, uploads, captured mail
+                           # (uploads in S3 survive this; the directus_files rows do not)
 docker compose up -d --wait   # Directus bootstraps a fresh admin from .env
 ```
 

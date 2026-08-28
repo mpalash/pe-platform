@@ -84,6 +84,45 @@ services:
       EMAIL_SMTP_SECURE: 'false'
       EMAIL_SMTP_IGNORE_TLS: 'true'
 
+      # ─── File storage ───────────────────────────────────────────────────────
+      # Editor uploads (Phase 4). The committed default is `local`, writing to
+      # the directus_uploads volume — a fresh clone still needs no cloud
+      # account (hard rule 2), and the S3 variables below are inert until `s3`
+      # appears in STORAGE_LOCATIONS.
+      #
+      # Order matters. The FIRST location is where new uploads are written; the
+      # rest stay readable. Each file records its location in
+      # `directus_files.storage` at upload time and that value is never
+      # rewritten, so `s3,local` moves new uploads to the bucket while
+      # everything already uploaded keeps resolving. Dropping `local` from the
+      # list breaks every file that was written before the switch.
+      STORAGE_LOCATIONS: ${DIRECTUS_STORAGE_LOCATIONS:-local}
+
+      STORAGE_LOCAL_DRIVER: local
+      STORAGE_LOCAL_ROOT: /directus/uploads
+
+      # The assets bucket only — Directus editor uploads. NEVER the archive
+      # bucket: Directus indexes and thumbnails what it owns, and the archive is
+      # 30,000+ clips it must not touch. (Phase 3 §3.5.)
+      #
+      # No ACL is set on purpose. The bucket stays private with Block Public
+      # Access on; Directus streams files out through /assets/<id>, so the app's
+      # asset URLs are identical either side of this switch.
+      STORAGE_S3_DRIVER: s3
+      STORAGE_S3_KEY: ${AWS_ASSETS_ACCESS_KEY_ID:-}
+      STORAGE_S3_SECRET: ${AWS_ASSETS_SECRET_ACCESS_KEY:-}
+      STORAGE_S3_BUCKET: ${AWS_ASSETS_BUCKET:-}
+      STORAGE_S3_REGION: ${AWS_ASSETS_REGION:-eu-north-1}
+      # Regional endpoint, not the global s3.amazonaws.com default: the global
+      # one costs a redirect on every request and fails outright for buckets in
+      # regions opened after 2019.
+      STORAGE_S3_ENDPOINT: ${AWS_ASSETS_ENDPOINT:-s3.eu-north-1.amazonaws.com}
+      # Optional key prefix. Empty — the default — puts objects at the bucket
+      # root, which is right for a bucket dedicated to Directus. If you ever set
+      # one, the IAM policy's Resource has to match it or every upload 403s, and
+      # changing it after files exist orphans them.
+      STORAGE_S3_ROOT: ${AWS_ASSETS_ROOT:-}
+
       CORS_ENABLED: 'true'
       CORS_ORIGIN: ${NUXT_PUBLIC_SITE_URL:-http://localhost:3000}
 
