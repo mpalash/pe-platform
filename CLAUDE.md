@@ -184,6 +184,11 @@ have to be named in `scripts/seed-settings.ts`.
   **Check the served response, not the file on disk, when verifying an
   artefact change.**
 
+- **The bucket is still public.** CloudFront (`media.purgatoryedit.com`) sits in
+  front of it, but the S3 URLs remain directly readable, so anything that
+  bypasses the CDN still bills egress at $0.09/GB. Locking it down needs Origin
+  Access Control and a bucket policy — deliberately not done yet.
+
 - **The ambient pool is Peace-only** (`ALLOWED_BINS` in
   `scripts/build-ambient-pool.ts`). The player has no advisory in front of it,
   so it must not draw from the war end — that is the whole reason the archive

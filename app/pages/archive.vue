@@ -84,13 +84,23 @@ onMounted(async () => {
 
         <div
           v-if="view === 'feed'"
+          key="feed"
           class="archive__feed"
         >
           <ArchiveFeed :ids="archive.displayedIds.value" />
         </div>
 
+        <!--
+          Keyed, and it matters. Without keys Vue patches this position in place
+          when the view changes rather than replacing it, so switching Feed →
+          Grid left the grid mounted inside the leftover `.archive__feed`
+          wrapper — inheriting its 46rem column and rendering four narrow
+          columns in the middle of a 2048px window instead of running edge to
+          edge.
+        -->
         <ArchiveGrid
           v-else-if="view === 'grid'"
+          key="grid"
           :ids="archive.displayedIds.value"
         />
       </Center>
