@@ -40,6 +40,8 @@ export interface PageWithBlocks extends ResolvedPage {
   seo_title: string | null
   seo_description: string | null
   seo_image: string | null
+  /** Whether the floating ambient clip player appears on this page. */
+  show_ambient_video: boolean
   blocks: PageBlock[]
 }
 
@@ -109,7 +111,7 @@ export async function listPages(includeDrafts = false): Promise<ResolvedPage[]> 
 
 const PAGE_FIELDS = [
   'id', 'status', 'title', 'slug', 'parent', 'sort',
-  'summary', 'seo_title', 'seo_description', 'seo_image',
+  'summary', 'seo_title', 'seo_description', 'seo_image', 'show_ambient_video',
   'blocks.id', 'blocks.collection', 'blocks.sort', 'blocks.item.*',
 ]
 

@@ -93,7 +93,7 @@ const countLabel = computed(() => {
 <template>
   <div
     ref="panel"
-    class="toolbar"
+    class="toolbar drag-panel"
     :class="{ 'toolbar--dragging': dragging }"
     :style="style"
   >
@@ -339,7 +339,7 @@ const countLabel = computed(() => {
  * nowrap/scroll apparatus is gone.
  */
 .toolbar {
-  position: fixed;
+  /* Positioning comes from `.drag-panel` in primitives.css. */
   z-index: 30;
   /* 240px, as specified — and `inline-size` too, not just a max, so the panel
      does not resize as the clip count changes length underneath it. */

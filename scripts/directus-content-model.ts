@@ -486,6 +486,26 @@ async function main(): Promise<void> {
   ])
 
   // Self-referencing parent — created after the collection so it can point at itself.
+  /*
+   * Per-page control of the floating ambient clip player.
+   *
+   * Defaults to true, so a page that predates this field — or one an editor
+   * never opens — keeps the player. Off is the deliberate choice, which is the
+   * right way round: the pages that must not have a video playing over them
+   * (a disclaimer, an advisory) are the ones someone will think about.
+   */
+  await ensureFields('pages', [{
+    field: 'show_ambient_video',
+    type: 'boolean',
+    meta: {
+      interface: 'boolean',
+      width: 'half',
+      note: 'Show the floating clip player on this page. Never appears on the archive, which has its own players and its own advisory.',
+      options: { label: 'Show the floating clip player' },
+    },
+    schema: { is_nullable: false, default_value: true },
+  }])
+
   await ensureFields('pages', [{
     field: 'parent',
     type: 'uuid',

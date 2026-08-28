@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "nuxt dev",
-    "build": "pnpm archive:sources && nuxt build",
+    "build": "pnpm archive:sources && pnpm archive:pool && nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
@@ -26,7 +26,8 @@
     "directus:roles": "tsx scripts/directus-roles.ts",
     "directus:prune": "tsx scripts/directus-prune-orphans.ts",
     "directus:seed-settings": "tsx scripts/seed-settings.ts",
-    "archive:sources": "tsx scripts/build-sources.ts"
+    "archive:sources": "tsx scripts/build-sources.ts",
+    "archive:pool": "tsx scripts/build-ambient-pool.ts"
   },
   "dependencies": {
     "@directus/sdk": "^25.0.0",

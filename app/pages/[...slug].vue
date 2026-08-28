@@ -22,6 +22,20 @@ if (error.value || !page.value) {
   throw createError({ statusCode: 404, statusMessage: 'Page not found', fatal: true })
 }
 
+/*
+ * Hand the page's ambient-player setting to the layout, which is where the
+ * player is mounted. Keyed by path so it cannot leak to a route that has no
+ * opinion of its own — see useAmbientVideo.
+ *
+ * `?? true` covers a page saved before the field existed, where Directus
+ * returns null rather than the column default.
+ */
+const ambient = useAmbientVideo()
+
+watchEffect(() => {
+  if (page.value) ambient.setForPath(path.value, page.value.show_ambient_video ?? true)
+})
+
 useSeoMeta({
   title: () => page.value?.seo_title || page.value?.title || '',
   description: () => page.value?.seo_description || page.value?.summary || '',

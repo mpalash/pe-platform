@@ -2893,6 +2893,52 @@
       }
     },
     {
+      "collection": "pages",
+      "field": "show_ambient_video",
+      "type": "boolean",
+      "meta": {
+        "collection": "pages",
+        "conditions": null,
+        "display": null,
+        "display_options": null,
+        "field": "show_ambient_video",
+        "group": null,
+        "hidden": false,
+        "interface": "boolean",
+        "note": "Show the floating clip player on this page. Never appears on the archive, which has its own players and its own advisory.",
+        "options": {
+          "label": "Show the floating clip player"
+        },
+        "readonly": false,
+        "required": false,
+        "searchable": true,
+        "sort": 13,
+        "special": null,
+        "translations": null,
+        "validation": null,
+        "validation_message": null,
+        "width": "half"
+      },
+      "schema": {
+        "name": "show_ambient_video",
+        "table": "pages",
+        "data_type": "boolean",
+        "default_value": true,
+        "max_length": null,
+        "numeric_precision": null,
+        "numeric_scale": null,
+        "is_nullable": false,
+        "is_unique": false,
+        "is_indexed": false,
+        "is_primary_key": false,
+        "is_generated": false,
+        "generation_expression": null,
+        "has_auto_increment": false,
+        "foreign_key_table": null,
+        "foreign_key_column": null
+      }
+    },
+    {
       "collection": "pages_blocks",
       "field": "id",
       "type": "integer",

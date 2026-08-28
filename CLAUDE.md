@@ -40,6 +40,7 @@ pnpm directus:seed-settings # fill the site_settings + navigation singletons
 pnpm directus:prune        # report orphaned block items (--delete to remove)
 pnpm seed:pages            # seed the editorial pages and their blocks
 pnpm archive:sources       # rebuild server/assets/sources.json (runs on build)
+pnpm archive:pool          # resample the ambient clip pool (runs on build)
 ```
 
 Mailpit web UI: http://localhost:8025 — this is where sign-in links arrive in development.
@@ -128,12 +129,18 @@ docs/plan/
     controls live in the toolbar via `useGalaxyControls`, not on the canvas, and
     the galaxy freezes while `useChromeDrag().dragging` is true.
 
-15. **The galaxy's constants are checked by `test/galaxy.spec.ts`.** Camera rest
+15. **The ambient player never appears on `/archive`,** which has its own
+    players and its own advisory gate. Per-page control is the Directus field
+    `pages.show_ambient_video`, defaulting to true; it reaches the layout
+    through `useAmbientVideo`, keyed by path so one page's setting cannot leak
+    to a route that has no opinion.
+
+16. **The galaxy's constants are checked by `test/galaxy.spec.ts`.** Camera rest
     distance against the radius, facing and distance hysteresis, atlas cell
     aspect. Every one of those fails silently in the browser, so if a change
     there makes a test fail, the test is probably right.
 
-16. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
+17. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
 ## Content sources
@@ -149,6 +156,13 @@ never appear in the page tree, so the nav fallback cannot find them and they
 have to be named in `scripts/seed-settings.ts`.
 
 ## Gotchas worth not rediscovering
+
+- **`useFetch` does not run in a component mounted after hydration.** Anything
+  under `<ClientOnly>` in the layout is in that position: `useFetch` silently
+  never fires and the data stays empty. A top-level `await` does not help —
+  that makes it an async setup component, and there is no Suspense boundary in
+  the layout for it to resolve against, so it never mounts at all. Use plain
+  `$fetch` in `onMounted` there.
 
 - **Nitro cannot read `public/` server-side in dev.** It is served by Vite there
   and from `.output/public` in a build, and `$fetch('/data/x.json')` 404s on the

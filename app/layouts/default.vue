@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const authModal = useAuthModal()
+const ambient = useAmbientVideo()
 </script>
 
 <template>
@@ -32,6 +33,15 @@ const authModal = useAuthModal()
     <!-- Mounted once at the layout level so any page can summon it, and so it
          survives navigation between pages. -->
     <AuthModal v-if="authModal.isOpen.value" />
+
+    <!--
+      Mounted here rather than per page so that navigating does not restart the
+      clip. ClientOnly because a <video> has nothing to render on the server,
+      and because the player reads the window height to open at the bottom left.
+    -->
+    <ClientOnly>
+      <AmbientVideo v-if="ambient.enabled.value" />
+    </ClientOnly>
   </div>
 </template>
 

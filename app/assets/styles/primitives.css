@@ -289,3 +289,38 @@
     --page-gap: 8px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DRAG PANEL — shared positioning for anything `useDraggable` moves.
+
+   The composable supplies a `transform`, so every panel it drives has to be
+   anchored at the origin and offset from there. That is three components now
+   (header, archive toolbar, ambient video) and the rule below is the only
+   thing keeping them agreeing on it.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.drag-panel {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+
+  /*
+   * Eases to its position, which matters most on the FIRST paint after a
+   * reload: the server renders the default position because localStorage does
+   * not exist there, so a panel you left elsewhere would otherwise jump to it.
+   * `--drag-ease` is overridden to 0ms while dragging — see useDraggable.
+   */
+  transition: transform var(--drag-ease, var(--duration-slow)) var(--ease-out);
+
+  /* Promotes the panel to its own layer so the transform never repaints the
+     content underneath it — which on the archive is a 30,000-instance canvas. */
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drag-panel {
+    /* The correction still happens; it just happens at once. Sliding chrome
+       across the screen is exactly the motion this preference is about. */
+    transition: none;
+  }
+}

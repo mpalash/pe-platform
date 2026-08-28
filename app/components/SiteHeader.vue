@@ -67,7 +67,7 @@ watch(navOpen, () => nextTick(reclamp))
 <template>
   <header
     ref="panel"
-    class="site-header"
+    class="site-header drag-panel"
     :class="{ 'site-header--dragging': dragging }"
     :style="style"
   >
@@ -177,7 +177,7 @@ watch(navOpen, () => nextTick(reclamp))
 
 <style scoped>
 .site-header {
-  position: fixed;
+  /* Positioning comes from `.drag-panel` in primitives.css. */
   z-index: 40;
   inline-size: max-content;
   min-inline-size: 9rem;

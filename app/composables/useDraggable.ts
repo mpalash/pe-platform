@@ -162,9 +162,27 @@ export function useDraggable(options: DraggableOptions) {
     if (dragging.value) chrome.end()
   })
 
+  /**
+   * Position as a transform, and the reason it eases.
+   *
+   * `usePersistentState` renders the DEFAULT on the server — localStorage does
+   * not exist there — and adopts the stored value on mount. A panel you left at
+   * the bottom right therefore paints at the top left for one frame and then
+   * jumps. The mount re-clamp can move it again on top of that, if the window
+   * has been resized since the last visit.
+   *
+   * Easing that transition turns both corrections into a single deliberate
+   * glide to where you left the panel, which reads as the page settling rather
+   * than as a layout bug. `--drag-ease` is set to 0 while a pointer drag is in
+   * progress: a transition there would make the panel lag the cursor, which is
+   * the one place this must not happen.
+   *
+   * `translate3d` rather than `inset`, because only the former animates on the
+   * compositor — transitioning `inset` relayouts the panel every frame.
+   */
   const style = computed(() => ({
-    insetInlineStart: `${position.value.x}px`,
-    insetBlockStart: `${position.value.y}px`,
+    'transform': `translate3d(${position.value.x}px, ${position.value.y}px, 0)`,
+    '--drag-ease': dragging.value ? '0ms' : undefined,
   }))
 
   /** Spread onto the drag handle. Keeps the wiring in one place. */

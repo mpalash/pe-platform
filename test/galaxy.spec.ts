@@ -126,3 +126,42 @@ describe('galaxy controls', () => {
     expect(code(galaxySource)).toMatch(/frozen\s*=\s*computed\(\(\)\s*=>\s*paused\.value\s*\|\|/)
   })
 })
+
+/*
+ * Not the galaxy, but the same class of fact: a small artefact derived from the
+ * 18MB archive at build time, committed, and silently wrong if it drifts.
+ */
+describe('ambient clip pool', () => {
+  const pool = JSON.parse(
+    readFileSync(resolve(repoRoot, 'server/assets/ambient-pool.json'), 'utf8'),
+  ) as Array<{ id: string, filename: string }>
+
+  it('is populated', () => {
+    expect(pool.length).toBeGreaterThan(50)
+  })
+
+  /** A clip with no filename renders as a black box rather than being skipped. */
+  it('has a filename for every clip', () => {
+    expect(pool.every(clip => Boolean(clip.filename))).toBe(true)
+  })
+
+  /**
+   * The player picks the next clip by comparing ids, so duplicates would make
+   * "next" occasionally appear to do nothing.
+   */
+  it('has no duplicate ids', () => {
+    expect(new Set(pool.map(clip => clip.id)).size).toBe(pool.length)
+  })
+
+  /**
+   * The sample is seeded so the committed artefact is stable; an unseeded one
+   * would rewrite itself on every build and put a meaningless diff in every
+   * commit that touched the frontend.
+   */
+  it('is generated from a seeded sample', () => {
+    const script = readFileSync(resolve(repoRoot, 'scripts/build-ambient-pool.ts'), 'utf8')
+
+    expect(script).toMatch(/POOL_SEED\s*=\s*\d+/)
+    expect(code(script)).not.toContain('Math.random()')
+  })
+})
