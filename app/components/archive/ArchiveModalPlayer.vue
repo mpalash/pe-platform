@@ -170,6 +170,17 @@ let previouslyFocused: HTMLElement | null = null
 onMounted(() => {
   previouslyFocused = document.activeElement as HTMLElement | null
 
+  /*
+   * Bound to the DOCUMENT, not only to the dialog.
+   *
+   * The template binding alone only fires while focus is inside the modal, so
+   * Escape stopped working the moment focus went anywhere else — clicking a
+   * floating panel, or the browser moving it on its own. The modal is still
+   * covering the screen at that point, and a cover you cannot dismiss from the
+   * keyboard is the failure this was supposed to prevent.
+   */
+  document.addEventListener('keydown', onKeydown)
+
   // Lock the page behind. Without this the background scrolls under the modal,
   // which on a feed of autoplaying video is genuinely disorienting.
   document.body.style.overflow = 'hidden'
@@ -179,6 +190,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
@@ -216,7 +228,6 @@ watch(() => props.item.id, () => {
     aria-modal="true"
     :aria-label="item.name"
     tabindex="-1"
-    @keydown="onKeydown"
   >
     <div
       class="modal__scrim scrim"
@@ -468,7 +479,7 @@ watch(() => props.item.id, () => {
 
   position: relative;
   inline-size: min(
-    72rem,
+    96rem,
     100%,
     calc((92svh - var(--modal-chrome)) * 16 / 9 + var(--modal-meta))
   );
