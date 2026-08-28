@@ -339,19 +339,20 @@
 
 .scrim {
   /*
-   * One opacity for every scrim, deliberately not tunable per modal.
+   * One opacity and one blur for every scrim, declared here and overridden
+   * nowhere.
    *
-   * Three different values read as three different surfaces — a modal is a
-   * modal, and the depth of the layer behind it should not be a per-component
-   * decision that drifts every time one is edited. 70% also leaves the blur
-   * plenty of room to do the obscuring: past about 90% the layer is effectively
-   * opaque and any blur behind it is invisible.
+   * A modal is a modal: the depth of the layer behind it is a property of the
+   * design system, not a per-component decision that drifts each time one of
+   * them is edited. Both values are named rather than inlined so the two
+   * numbers that define a scrim are legible in one place — but nothing tunes
+   * them, and `test/design-system.spec.ts` holds that line.
    *
-   * Blur is still per-modal, because how much of the page should stay legible
-   * genuinely does differ — see the individual overrides.
+   * 70% leaves the blur room to do the obscuring: past about 90% the layer is
+   * effectively opaque and any blur behind it is invisible.
    */
   --scrim-opacity: 70%;
-  --scrim-blur: 14px;
+  --scrim-blur: 16px;
 
   position: absolute;
   inset: 0;

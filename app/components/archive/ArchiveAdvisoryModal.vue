@@ -162,17 +162,14 @@ onBeforeUnmount(() => {
 }
 
 /*
- * Positioning, opacity and fallback come from `.scrim` in primitives.css.
+ * Entirely `.scrim` in primitives.css — positioning, opacity, blur and the
+ * no-backdrop-filter fallback.
  *
- * Blurred more than the default and nothing else: the archive is loading behind
- * this and should read as movement and shape — evidence that waiting is not
- * what accepting will cost — without resolving into content nobody has
- * consented to see yet. The blur is what draws that line; the opacity is shared
- * with every other scrim.
+ * The shared 70%/16px is what keeps the loading archive readable as movement
+ * and shape — evidence that waiting is not what accepting will cost — without
+ * resolving into content nobody has consented to see yet. That happens to be
+ * what every other modal wants too, so nothing here is special-cased.
  */
-.advisory-gate__scrim {
-  --scrim-blur: 18px;
-}
 
 .advisory-gate__panel {
   position: relative;

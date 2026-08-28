@@ -447,13 +447,9 @@ watch(() => props.item.id, () => {
   padding: var(--space-m);
 }
 
-/* Positioning, opacity and fallback come from `.scrim` in primitives.css.
-   Blurred harder than the others, and only blurred: this modal is itself a
-   video, so the archive behind it needs to stop resolving into anything the eye
-   can follow. Opacity is shared across every scrim. */
-.modal__scrim {
-  --scrim-blur: 20px;
-}
+/* Entirely `.scrim` in primitives.css — positioning, opacity, blur and the
+   no-backdrop-filter fallback. Every modal backdrop on the site is the same
+   surface, so this one overrides none of it. */
 
 .modal__panel {
   position: relative;
