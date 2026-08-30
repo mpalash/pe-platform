@@ -376,11 +376,30 @@ onMounted(async () => {
   will-change: transform;
 }
 
+/*
+ * Masked to the shape in app/assets/masks — the frame is a cut corner rather
+ * than a rectangle.
+ *
+ * The mask lives in `assets/` rather than `public/` so Vite processes it: at
+ * 739 bytes it lands under the inline threshold and becomes a data URI in the
+ * stylesheet, which removes a request and makes it impossible for the mask to
+ * 404 while the video still plays. From `public/` it would have been an
+ * unhashed, separately-fetched file.
+ *
+ * The SVG is 1920x1080 and the frame is 16:9, so `100% 100%` maps it exactly
+ * with no distortion. `-webkit-` is still worth carrying for older iOS.
+ *
+ * The panel background shows through the masked-out corners, which is the
+ * intent — the video reads as a shaped window rather than an inset rectangle.
+ */
 .ambient__video {
   display: block;
   inline-size: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   background: var(--surface-sunken);
+
+  -webkit-mask: url('~/assets/masks/ambient-vid-mask.svg') center / 100% 100% no-repeat;
+  mask: url('~/assets/masks/ambient-vid-mask.svg') center / 100% 100% no-repeat;
 }
 </style>
