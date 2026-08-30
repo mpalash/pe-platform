@@ -7,10 +7,10 @@
  * clip when one ends rather than looping a single clip, so it stays a window
  * onto the archive rather than a decoration that happens to move.
  *
- * Draggable, and that is the only way out of its way: whether it appears at
- * all is an editorial decision, made per page in Directus, not a per-visitor
- * one. It sits over the content on every page that wants it, and anything that
- * sits over content on every page has to be movable.
+ * The video itself is the drag surface — there is no handle and no title bar,
+ * so the chrome is one thin row holding the progress bar and a play/pause
+ * toggle. Dragging is the only way out of its way: whether it appears at all is
+ * an editorial decision, made per page in Directus, not a per-visitor one.
  *
  * Media goes through `usePlaybackSource` like every other player — a `.mp4`
  * literal anywhere in here would be a bug (hard rule 5).
@@ -208,77 +208,16 @@ onMounted(async () => {
     :style="{ ...style, inlineSize: `${WIDTH}px` }"
     aria-label="Archive clips"
   >
-    <div class="ambient__bar">
-      <button
-        type="button"
-        class="ambient__handle"
-        aria-label="Move the clip player. Use the arrow keys to reposition, Home to reset."
-        v-bind="handleProps"
-      >
-        <svg
-          viewBox="0 0 16 16"
-          width="12"
-          height="12"
-          aria-hidden="true"
-        >
-          <g fill="currentColor">
-            <circle
-              cx="6"
-              cy="4"
-              r="1"
-            />
-            <circle
-              cx="10"
-              cy="4"
-              r="1"
-            />
-            <circle
-              cx="6"
-              cy="8"
-              r="1"
-            />
-            <circle
-              cx="10"
-              cy="8"
-              r="1"
-            />
-            <circle
-              cx="6"
-              cy="12"
-              r="1"
-            />
-            <circle
-              cx="10"
-              cy="12"
-              r="1"
-            />
-          </g>
-        </svg>
-      </button>
-
-      <button
-        type="button"
-        class="ambient__control"
-        :aria-pressed="playing"
-        @click="toggle"
-      >
-        {{ playing ? 'Pause' : 'Play' }}
-      </button>
-
-      <button
-        type="button"
-        class="ambient__control"
-        @click="onEnded"
-      >
-        Next<span class="visually-hidden"> clip</span>
-      </button>
-    </div>
-
     <!--
+      The video IS the drag surface — there is no separate handle any more.
+      `tabindex` and the label keep it operable from the keyboard: useDraggable
+      takes arrow keys and Home from whatever it is bound to, and dropping the
+      handle button without this would have made repositioning a mouse-only
+      affordance (hard rule 11).
+
       `muted` is not optional — an unmuted autoplay is refused by every browser.
       `playsinline` stops iOS taking the video fullscreen the moment it starts.
-      No `controls`: the strip above is the control surface, and the native ones
-      would cover a 240px frame entirely.
+      No `controls`: the native ones would cover a 240px frame entirely.
     -->
     <video
       ref="video"
@@ -288,27 +227,40 @@ onMounted(async () => {
       muted
       playsinline
       preload="metadata"
-      :title="clip?.name"
+      tabindex="0"
+      :aria-label="`Archive clip${clip?.name ? `: ${clip.name}` : ''}. Drag to move; arrow keys reposition, Home resets.`"
       @ended="onEnded"
       @error="onError"
       @timeupdate="onTimeUpdate"
       @play="playing = true"
       @pause="playing = false"
+      v-bind="handleProps"
     />
 
-    <!--
-      aria-hidden: it reports the same thing the <video> already does, it
-      changes several times a second, and it cannot be interacted with — three
-      good reasons not to put it in the accessibility tree.
-    -->
-    <div
-      class="ambient__progress"
-      aria-hidden="true"
-    >
+    <div class="ambient__bar">
+      <!--
+        aria-hidden: it reports the same thing the <video> already does, it
+        changes several times a second, and it cannot be interacted with.
+      -->
       <div
-        class="ambient__progress-bar"
-        :style="{ transform: `scaleX(${progress})` }"
-      />
+        class="ambient__progress"
+        aria-hidden="true"
+      >
+        <div
+          class="ambient__progress-bar"
+          :style="{ transform: `scaleX(${progress})` }"
+        />
+      </div>
+
+      <button
+        type="button"
+        class="ambient__control"
+        :aria-pressed="playing"
+        :aria-label="playing ? 'Pause' : 'Play'"
+        @click="toggle"
+      >
+        <span aria-hidden="true">{{ playing ? '❚❚' : '▶' }}</span>
+      </button>
     </div>
   </aside>
 </template>
@@ -328,6 +280,7 @@ onMounted(async () => {
   user-select: none;
 }
 
+/* Progress and the single play/pause control share one row under the video. */
 .ambient__bar {
   display: flex;
   align-items: center;
@@ -335,22 +288,17 @@ onMounted(async () => {
   padding: var(--space-3xs) var(--space-2xs);
 }
 
-.ambient__handle {
-  display: inline-flex;
-  padding: 0;
-  cursor: grab;
-  color: var(--ink-faint);
-  touch-action: none; /* or the browser scrolls instead of dragging */
-}
-
-.ambient--dragging .ambient__handle {
-  cursor: grabbing;
-}
-
 .ambient__control {
-  font-size: var(--text-3xs, var(--text-2xs));
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
+  flex: none;
+  /* A square target rather than a text button — it sits beside a 2px bar and
+     needs to be tappable without making the row taller than the bar. */
+  display: grid;
+  place-items: center;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  padding: 0;
+  font-size: 0.6rem;
+  line-height: 1;
   color: var(--ink-faint);
 }
 
@@ -359,6 +307,8 @@ onMounted(async () => {
 }
 
 .ambient__progress {
+  flex: 1;
+  min-inline-size: 0;
   block-size: 2px;
   background: var(--rule);
   overflow: hidden;
@@ -401,5 +351,24 @@ onMounted(async () => {
 
   -webkit-mask: url('~/assets/masks/ambient-vid-mask.svg') center / 100% 100% no-repeat;
   mask: url('~/assets/masks/ambient-vid-mask.svg') center / 100% 100% no-repeat;
+
+  /* The whole frame is the grab surface. `touch-action: none` moved here with
+     it, or a touch drag scrolls the page instead of moving the player. */
+  cursor: grab;
+  touch-action: none;
+}
+
+.ambient--dragging .ambient__video {
+  cursor: grabbing;
+}
+
+/* The mask clips the element's own outline, so the ring goes on the panel. */
+.ambient:has(.ambient__video:focus-visible) {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+
+.ambient__video:focus-visible {
+  outline: none;
 }
 </style>
