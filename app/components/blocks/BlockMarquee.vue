@@ -35,50 +35,18 @@ const config = useRuntimeConfig()
 
 const entries = computed(() => props.items ?? [])
 
-/**
- * How many copies of the list the track holds.
- *
- * Two is only enough when one copy is already wider than the viewport. With
- * three or four supporters on a wide screen it is not, and the track runs out
- * mid-scroll leaving an obvious empty gap before it snaps back. So the copies
- * are measured and repeated until the track is at least twice the viewport.
- */
-const repeats = ref(2)
+// Repeat count, seam distance and duration all live in useMarquee — the
+// announcement banner needs exactly the same behaviour.
 const viewportEl = useTemplateRef<HTMLElement>('viewportEl')
 const groupEl = useTemplateRef<HTMLElement>('groupEl')
 
-function measure(): void {
-  const viewportWidth = viewportEl.value?.getBoundingClientRect().width ?? 0
-  const groupWidth = groupEl.value?.getBoundingClientRect().width ?? 0
-
-  if (viewportWidth <= 0 || groupWidth <= 0) return
-
-  // The extra copy keeps a full screen of content ahead of the seam.
-  repeats.value = Math.max(2, Math.ceil((viewportWidth * 2) / groupWidth) + 1)
-}
-
-let resizeObserver: ResizeObserver | null = null
-
-onMounted(() => {
-  measure()
-  if (viewportEl.value) {
-    resizeObserver = new ResizeObserver(() => measure())
-    resizeObserver.observe(viewportEl.value)
-  }
+const { repeats, duration, reversed } = useMarquee({
+  viewport: viewportEl,
+  group: groupEl,
+  count: computed(() => entries.value.length),
+  speed: computed(() => props.speed),
+  direction: computed(() => props.direction),
 })
-
-onBeforeUnmount(() => resizeObserver?.disconnect())
-
-/**
- * Duration scales with the number of items so that adding a supporter does not
- * silently speed everything up — the pixels-per-second stays roughly constant.
- */
-const duration = computed(() => {
-  const perItem = { slow: 4.5, medium: 3, fast: 1.8 }[props.speed ?? 'slow'] ?? 4.5
-  return `${Math.max(12, entries.value.length * perItem)}s`
-})
-
-const reversed = computed(() => props.direction === 'right')
 
 function src(item: MarqueeItem): string | null {
   return item.image ? `${config.public.directusUrl}/assets/${item.image}` : null

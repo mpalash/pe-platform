@@ -50,6 +50,24 @@ export function useDraggable(options: DraggableOptions) {
   const chrome = useChromeDrag()
 
   /**
+   * How tall the announcement banner is, read from the CSS variable it
+   * publishes rather than from its composable.
+   *
+   * `useState` is not usable here: the components that drag (SiteHeader above
+   * all) `await` before calling this, and after an await the Nuxt context is
+   * gone — `useState` then hands back a DETACHED ref that silently reads 0
+   * for ever. The symptom was a header that clamped to 24px and sat under the
+   * banner while `--banner-h` was plainly 28px.
+   *
+   * The custom property has no such requirement and is the same number.
+   */
+  function bannerHeight(): number {
+    if (!import.meta.client) return 0
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--banner-h')
+    return Number.parseFloat(raw) || 0
+  }
+
+  /**
    * Clamps to the viewport. Reads the panel's real size each time rather than
    * caching it — these panels change height when a menu opens or the clip
    * count changes, and a stale height lets the bottom edge escape.
@@ -61,12 +79,22 @@ export function useDraggable(options: DraggableOptions) {
     const width = el?.offsetWidth ?? 0
     const height = el?.offsetHeight ?? 0
 
+    /*
+     * The announcement banner reserves a strip at the very top, so the upper
+     * bound is below it rather than at DRAG_MARGIN. Without this the header
+     * panel opens underneath the banner and can be dragged behind it — the one
+     * place on screen where a floating panel is genuinely stuck.
+     *
+     * Zero whenever no announcement is running, which is most of the time.
+     */
+    const top = DRAG_MARGIN + bannerHeight()
+
     const maxX = Math.max(DRAG_MARGIN, window.innerWidth - width - DRAG_MARGIN)
-    const maxY = Math.max(DRAG_MARGIN, window.innerHeight - height - DRAG_MARGIN)
+    const maxY = Math.max(top, window.innerHeight - height - DRAG_MARGIN)
 
     return {
       x: Math.min(Math.max(x, DRAG_MARGIN), maxX),
-      y: Math.min(Math.max(y, DRAG_MARGIN), maxY),
+      y: Math.min(Math.max(y, top), maxY),
     }
   }
 
@@ -153,10 +181,15 @@ export function useDraggable(options: DraggableOptions) {
     // once the element exists rather than trusting what came out of storage.
     nextTick(reclamp)
     window.addEventListener('resize', reclamp, { passive: true })
+
+    // An announcement arriving after mount changes where "the top" is. The
+    // banner announces that with an event, for the same context reason.
+    window.addEventListener('pe:banner-resize', reclamp)
   })
 
   onBeforeUnmount(() => {
     window.removeEventListener('resize', reclamp)
+    window.removeEventListener('pe:banner-resize', reclamp)
     // Unmounting mid-drag — a route change under the pointer — would otherwise
     // leave the global count raised and the galaxy frozen for ever.
     if (dragging.value) chrome.end()

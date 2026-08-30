@@ -700,6 +700,71 @@ async function main(): Promise<void> {
     text('decline_path', { note: 'Where the way out goes. Defaults to /.' }),
   ])
 
+  await ensureCollection('announcement', {
+    icon: 'campaign',
+    singleton: true,
+    note: 'The marquee across the top of every page. For upcoming exhibitions and showings.',
+  }, [
+    {
+      field: 'enabled',
+      type: 'boolean',
+      meta: {
+        interface: 'boolean',
+        width: 'half',
+        note: 'Turn the banner off without deleting what it says.',
+        options: { label: 'Show the banner' },
+      },
+      schema: { is_nullable: false, default_value: true },
+    },
+    {
+      field: 'speed',
+      type: 'string',
+      meta: {
+        interface: 'select-dropdown',
+        width: 'half',
+        options: {
+          choices: [
+            { text: 'Slow', value: 'slow' },
+            { text: 'Medium', value: 'medium' },
+            { text: 'Fast', value: 'fast' },
+          ],
+        },
+        note: 'Slow is usually right — a banner that outruns reading is decoration, not an announcement.',
+      },
+      schema: { is_nullable: true, default_value: 'slow' },
+    },
+    json('items', {
+      template: '{{ text }}',
+      fields: [
+        {
+          field: 'text',
+          type: 'string',
+          name: 'Announcement',
+          meta: {
+            interface: 'input',
+            required: true,
+            note: 'One line, e.g. "Transmediale, Berlin — 12–18 February".',
+          },
+        },
+        {
+          field: 'url',
+          type: 'string',
+          name: 'Link',
+          meta: { interface: 'input', note: 'Optional. Makes the entry clickable.' },
+        },
+        {
+          field: 'until',
+          type: 'date',
+          name: 'Show until',
+          meta: {
+            interface: 'datetime',
+            note: 'Optional. The entry disappears on its own after this date — which is what keeps a banner of UPCOMING events from advertising things that already happened.',
+          },
+        },
+      ],
+    }, 'Entries scroll in this order. An empty list hides the banner regardless of the switch above.'),
+  ])
+
   await ensureCollection('navigation', {
     icon: 'menu',
     singleton: true,

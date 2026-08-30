@@ -15,6 +15,13 @@ const ambient = useAmbientVideo()
       class="skip-link"
     >Skip to content</a>
 
+    <!--
+      Above the header in the source because it is above it on screen, and it
+      is the one piece of chrome that reserves space rather than floating over
+      the content.
+    -->
+    <SiteBanner />
+
     <SiteHeader />
 
     <main

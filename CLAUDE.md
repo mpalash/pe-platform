@@ -184,6 +184,18 @@ have to be named in `scripts/seed-settings.ts`.
   **Check the served response, not the file on disk, when verifying an
   artefact change.**
 
+- **`useState` is unusable after an `await` in setup.** It hands back a
+  DETACHED ref that silently reads its default for ever rather than throwing —
+  which is how the draggable panels read a banner height of 0 while the CSS
+  variable plainly said 28px. Components that await (SiteHeader) must reach
+  shared values another way; `useDraggable` reads `--banner-h` off the document
+  and listens for a `pe:banner-resize` event instead.
+
+- **A dynamic `:ref` inside `v-for` does not resolve through `useTemplateRef`.**
+  Vue collects refs in a loop as an array. It broke hydration outright on the
+  banner. Render the first copy explicitly with a plain `ref`, then loop the
+  rest — as `BlockMarquee` already did.
+
 - **The bucket is still public.** CloudFront (`media.purgatoryedit.com`) sits in
   front of it, but the S3 URLs remain directly readable, so anything that
   bypasses the CDN still bills egress at $0.09/GB. Locking it down needs Origin

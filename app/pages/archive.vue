@@ -154,7 +154,8 @@ onMounted(async () => {
    * 100svh rather than 100vh so mobile browser chrome does not push the bottom
    * of the galaxy out of reach behind the address bar.
    */
-  block-size: 100svh;
+  /* Minus the announcement strip, which is 0 when none is running. */
+  block-size: calc(100svh - var(--banner-h, 0px));
 }
 
 .archive__feed {
@@ -162,6 +163,6 @@ onMounted(async () => {
   max-inline-size: 46rem;
   margin-inline: auto;
   /* Clearance for the floating header, which opens at the top-left. */
-  padding-block-start: var(--space-4xl);
+  padding-block-start: calc(var(--space-4xl) + var(--banner-h, 0px));
 }
 </style>
