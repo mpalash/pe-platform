@@ -1,27 +1,49 @@
 /**
- * Login tokens and sessions.
+ * Login tokens and sessions, in Directus.
  *
  * Tokens are stored as a SHA-256 hash with an expiry, never in the clear, and
  * are burned before a session is minted so a replayed link cannot mint a second
  * one. Sessions are opaque random ids; the cookie carries the id and nothing
  * else, so there is no client-side claim to forge (hard rule 6).
  *
- * ⚠️ STORAGE IS STILL THE SPIKE'S. Nitro's unstorage with a filesystem driver
- * under `.data/`. That is fine on one machine and wrong for anything deployed:
- * it does not survive a redeploy, and it does not work across instances.
- * Phase 5 §0 finding 3 calls for two Directus collections instead, which also
- * gives admins visibility. **That migration is outstanding.**
+ * Storage is `auth_login_tokens` and `auth_sessions`, reached with the service
+ * token. It used to be Nitro's unstorage on the filesystem under `.data/`,
+ * which is fine on one machine and wrong for anything deployed: it does not
+ * survive a redeploy and is not shared between instances. On a platform with an
+ * ephemeral disk that meant every deploy signed everyone out and invalidated
+ * the magic links already sitting in inboxes. Two collections also give admins
+ * something they never had — a list of live sessions, revocable by deleting a
+ * row. (Phase 5 §0 finding 3.)
+ *
+ * Rows are keyed by hash and looked up with a filter. Every read that finds an
+ * expired row deletes it, so ordinary traffic keeps both tables trimmed without
+ * a scheduled job.
  */
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createItem, deleteItem, readItems, updateItem } from '@directus/sdk'
 
-interface LoginToken {
-  userId: string
+/** As stored. Timestamps are ISO strings because that is what Directus returns. */
+interface StoredLoginToken {
+  id: string
+  user: string
   email: string
-  expiresAt: number
-  usedAt: number | null
+  expires_at: string
+  used_at: string | null
 }
 
+interface StoredSessionRow {
+  id: string
+  user: string
+  email: string
+  name: string | null
+  expires_at: string
+}
+
+/**
+ * As the rest of the app sees it. Deliberately unchanged from the filesystem
+ * version so no caller had to move — the four auth routes are untouched.
+ */
 interface StoredSession {
   userId: string
   email: string
@@ -31,8 +53,20 @@ interface StoredSession {
 
 const LOGIN_TOKEN_TTL_MS = 15 * 60 * 1000 // 15 minutes
 
-function storage() {
-  return useStorage('auth')
+/**
+ * One row by hash, or null.
+ *
+ * `limit: 1` rather than a unique constraint doing the work: Directus item
+ * creation would reject a duplicate hash, but a 32-byte random value colliding
+ * is not a failure mode worth designing a schema around, and a filtered read is
+ * the same single indexed lookup either way.
+ */
+async function findByHash<T>(collection: string, field: string, hash: string): Promise<T | null> {
+  const rows = await useDirectus().request(
+    readItems(collection, { filter: { [field]: { _eq: hash } }, limit: 1 }),
+  ) as T[]
+
+  return rows[0] ?? null
 }
 
 /** Store the hash, hand back the raw token. The raw value is never persisted. */
@@ -43,12 +77,13 @@ export function hashToken(rawToken: string): string {
 export async function issueLoginToken(userId: string, email: string): Promise<string> {
   const rawToken = randomBytes(32).toString('base64url')
 
-  await storage().setItem<LoginToken>(`login:${hashToken(rawToken)}`, {
-    userId,
+  await useDirectus().request(createItem('auth_login_tokens', {
+    token_hash: hashToken(rawToken),
+    user: userId,
     email,
-    expiresAt: Date.now() + LOGIN_TOKEN_TTL_MS,
-    usedAt: null,
-  })
+    expires_at: new Date(Date.now() + LOGIN_TOKEN_TTL_MS).toISOString(),
+    used_at: null,
+  }))
 
   return rawToken
 }
@@ -62,20 +97,25 @@ export type ConsumeResult
  * so a replayed link cannot mint a second session.
  */
 export async function consumeLoginToken(rawToken: string): Promise<ConsumeResult> {
-  const key = `login:${hashToken(rawToken)}`
-  const record = await storage().getItem<LoginToken>(key)
+  const record = await findByHash<StoredLoginToken>(
+    'auth_login_tokens', 'token_hash', hashToken(rawToken),
+  )
 
   if (!record) return { ok: false, reason: 'unknown' }
-  if (record.usedAt !== null) return { ok: false, reason: 'already-used' }
+  if (record.used_at !== null) return { ok: false, reason: 'already-used' }
 
-  if (record.expiresAt < Date.now()) {
-    await storage().removeItem(key)
+  if (Date.parse(record.expires_at) < Date.now()) {
+    await useDirectus().request(deleteItem('auth_login_tokens', record.id))
     return { ok: false, reason: 'expired' }
   }
 
-  await storage().setItem<LoginToken>(key, { ...record, usedAt: Date.now() })
+  // Burned BEFORE the session is minted, so a replayed link cannot mint a
+  // second one even if the two requests race.
+  await useDirectus().request(updateItem('auth_login_tokens', record.id, {
+    used_at: new Date().toISOString(),
+  }))
 
-  return { ok: true, userId: record.userId, email: record.email }
+  return { ok: true, userId: record.user, email: record.email }
 }
 
 export async function createSession(
@@ -86,32 +126,41 @@ export async function createSession(
 ): Promise<string> {
   const sessionId = randomBytes(32).toString('base64url')
 
-  await storage().setItem<StoredSession>(`session:${hashToken(sessionId)}`, {
-    userId,
+  await useDirectus().request(createItem('auth_sessions', {
+    session_hash: hashToken(sessionId),
+    user: userId,
     email,
     name: name ?? null,
-    expiresAt: Date.now() + ttlDays * 24 * 60 * 60 * 1000,
-  })
+    expires_at: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString(),
+  }))
 
   return sessionId
 }
 
 export async function readSession(sessionId: string): Promise<StoredSession | null> {
-  const key = `session:${hashToken(sessionId)}`
-  const session = await storage().getItem<StoredSession>(key)
+  const row = await findByHash<StoredSessionRow>(
+    'auth_sessions', 'session_hash', hashToken(sessionId),
+  )
 
-  if (!session) return null
+  if (!row) return null
 
-  if (session.expiresAt < Date.now()) {
-    await storage().removeItem(key)
+  const expiresAt = Date.parse(row.expires_at)
+
+  if (expiresAt < Date.now()) {
+    await useDirectus().request(deleteItem('auth_sessions', row.id))
     return null
   }
 
-  return session
+  return { userId: row.user, email: row.email, name: row.name, expiresAt }
 }
 
 export async function destroySession(sessionId: string): Promise<void> {
-  await storage().removeItem(`session:${hashToken(sessionId)}`)
+  const row = await findByHash<StoredSessionRow>(
+    'auth_sessions', 'session_hash', hashToken(sessionId),
+  )
+
+  // Already gone is the desired end state, not an error.
+  if (row) await useDirectus().request(deleteItem('auth_sessions', row.id))
 }
 
 /** Constant-time compare, for anywhere a secret is checked against a candidate. */

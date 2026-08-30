@@ -640,6 +640,71 @@ async function main(): Promise<void> {
    * Both are singletons — `meta.singleton: true` — so Directus shows the record
    * directly rather than a one-row list to click through.
    */
+  /* ── Auth storage ───────────────────────────────────────────────────────
+   *
+   * Login tokens and sessions, moved off the filesystem.
+   *
+   * The spike kept both in unstorage under `.data/`, which is fine on one
+   * machine and wrong for anything deployed: it does not survive a redeploy and
+   * is not shared between instances. On a platform with an ephemeral disk that
+   * means every deploy logs everyone out and invalidates the magic links
+   * already in people's inboxes.
+   *
+   * Neither collection is readable by anyone but the service token. Nothing in
+   * them is a bearer credential — tokens and session ids are stored as SHA-256
+   * hashes, never in the clear — but they are still a map of who is signed in.
+   */
+  console.log('\nAuth')
+
+  await ensureCollection('auth_login_tokens', {
+    icon: 'key',
+    note: 'Magic-link tokens. Hashed, single-use, short-lived. Written by the app; not for editing.',
+    hidden: true,
+  }, [
+    text('token_hash', { required: true, note: 'SHA-256 of the token. The raw value is never stored.' }),
+    text('user', { required: true, note: 'Directus user id.' }),
+    text('email', { required: true }),
+    {
+      field: 'expires_at',
+      type: 'timestamp',
+      meta: { interface: 'datetime', readonly: true },
+      schema: { is_nullable: false },
+    },
+    {
+      field: 'used_at',
+      type: 'timestamp',
+      meta: {
+        interface: 'datetime',
+        readonly: true,
+        note: 'Set before a session is minted, so a replayed link cannot mint a second one.',
+      },
+      schema: { is_nullable: true },
+    },
+  ])
+
+  await ensureCollection('auth_sessions', {
+    icon: 'badge',
+    note: 'Live sign-ins. Deleting a row signs that person out immediately.',
+    hidden: true,
+  }, [
+    text('session_hash', { required: true, note: 'SHA-256 of the session id held in the cookie.' }),
+    text('user', { required: true, note: 'Directus user id.' }),
+    text('email', { required: true }),
+    text('name'),
+    {
+      field: 'expires_at',
+      type: 'timestamp',
+      meta: { interface: 'datetime', readonly: true },
+      schema: { is_nullable: false },
+    },
+    {
+      field: 'created_at',
+      type: 'timestamp',
+      meta: { interface: 'datetime', readonly: true, special: ['date-created'] },
+      schema: { is_nullable: true },
+    },
+  ])
+
   console.log('\nSingletons')
 
   await ensureCollection('site_settings', {

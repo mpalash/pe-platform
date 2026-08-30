@@ -292,9 +292,37 @@ describe('auth', () => {
 
   it('burns the login token before minting a session', () => {
     const store = readFileSync(resolve(repoRoot, 'server/utils/auth-store.ts'), 'utf8')
-    expect(store).toMatch(/usedAt/)
+
+    /*
+     * The ORDER is the property worth testing, not the field name — this used
+     * to pin `usedAt` and broke when the store moved to Directus and the column
+     * became `used_at`, while the behaviour was unchanged. What must hold is
+     * that consumeLoginToken marks the token used before it returns ok, so a
+     * replayed link cannot mint a second session.
+     */
+    const consume = store.slice(
+      store.indexOf('export async function consumeLoginToken'),
+      store.indexOf('export async function createSession'),
+    )
+
+    expect(consume, 'consumeLoginToken not found').not.toBe('')
+    expect(consume).toMatch(/used_?at:/i)
+    expect(consume.indexOf('used_at:')).toBeLessThan(consume.indexOf('return { ok: true'))
+
     // Stored hashed, never in the clear.
     expect(store).toMatch(/createHash\('sha256'\)/)
+  })
+
+  /**
+   * The whole point of moving off the filesystem: a redeploy must not sign
+   * everyone out, and two instances must see the same sessions.
+   */
+  it('keeps sessions in Directus rather than on the filesystem', () => {
+    const store = readFileSync(resolve(repoRoot, 'server/utils/auth-store.ts'), 'utf8')
+
+    expect(store).not.toMatch(/useStorage\(/)
+    expect(store).toMatch(/auth_sessions/)
+    expect(store).toMatch(/auth_login_tokens/)
   })
 })
 

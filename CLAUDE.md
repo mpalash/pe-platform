@@ -149,6 +149,16 @@ docs/plan/
 18. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
+## Deployment
+
+Target is Railway: Postgres + Directus (`directus/directus:12.3.0`) + Nuxt, three
+services in one project. `docs/plan/RAILWAY.md` is the runbook; `DEPLOYMENT.md`
+§5 owns the ordering rule — **schema, then Directus, then Nuxt**, because Nuxt
+queries fields Directus owns.
+
+`STORAGE_LOCATIONS=s3` in production, not `s3,local`: the container disk is
+ephemeral, so a `local` location loses uploads on every deploy.
+
 ## Content sources
 
 Editorial copy is ported from `../pe-vue/src/md/*.md`. That IS the live site —
