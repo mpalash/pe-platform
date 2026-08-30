@@ -223,7 +223,10 @@ const PAGES: PageSpec[] = [
         // direct S3 link rather than rendering it, so this doubles as a live
         // demonstration that hard rule 3 is enforced rather than merely written
         // down — and as a visible reminder that Phase 3 owes this file a CDN.
-        video_url: 'https://aam-purgatory-archive.s3.eu-north-1.amazonaws.com/static/performance-mockup.mp4',
+        // Through the CDN, never the S3 origin. BlockMedia refuses a direct
+        // s3.amazonaws.com URL outright (hard rule 3), so seeding one meant the
+        // home page silently rendered no video once the origin fallback was off.
+        video_url: 'https://media.purgatoryedit.com/static/performance-mockup.mp4',
         caption:
           'Cyber Performance, installation mockup. Not shown: the source is a direct S3 URL, and '
           + 'archive media must be served through CloudFront (hard rule 3). Phase 3 moves it.',

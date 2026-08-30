@@ -156,6 +156,9 @@ services in one project. `docs/plan/RAILWAY.md` is the runbook; `DEPLOYMENT.md`
 §5 owns the ordering rule — **schema, then Directus, then Nuxt**, because Nuxt
 queries fields Directus owns.
 
+Email is not configured yet: `docs/plan/SES.md` has the state and the remaining
+steps. SES is still sandboxed, so sign-in reaches verified addresses only.
+
 `STORAGE_LOCATIONS=s3` in production, not `s3,local`: the container disk is
 ephemeral, so a `local` location loses uploads on every deploy.
 
