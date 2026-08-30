@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VerifyTheSendingDomainAndReadItsStatus",
+      "Effect": "Allow",
+      "Action": [
+        "ses:CreateEmailIdentity",
+        "ses:GetEmailIdentity",
+        "ses:ListEmailIdentities",
+        "ses:PutEmailIdentityMailFromAttributes",
+        "ses:TagResource"
+      ],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "eu-north-1" } }
+    },
+    {
+      "Sid": "ReadAccountSendingStatusAndQuota",
+      "Effect": "Allow",
+      "Action": [
+        "ses:GetAccount",
+        "ses:ListConfigurationSets",
+        "ses:CreateConfigurationSet",
+        "ses:GetConfigurationSet"
+      ],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "eu-north-1" } }
+    },
+    {
+      "Sid": "CreateTheSmtpUserTheAppSendsAs",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateUser",
+        "iam:GetUser",
+        "iam:PutUserPolicy",
+        "iam:CreateAccessKey",
+        "iam:DeleteUserPolicy",
+        "iam:DeleteAccessKey",
+        "iam:DeleteUser"
+      ],
+      "Resource": "arn:aws:iam::448302912553:user/pe-ses-smtp"
+    },
+    {
+      "Sid": "NeverTouchTheArchive",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::aam-purgatory-archive/Clips 480p/*",
+        "arn:aws:s3:::aam-purgatory-archive/Clips HD/*",
+        "arn:aws:s3:::aam-purgatory-archive/Thumbnails/*"
+      ]
+    }
+  ]
+}
