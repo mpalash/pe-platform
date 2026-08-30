@@ -7,8 +7,10 @@
  * clip when one ends rather than looping a single clip, so it stays a window
  * onto the archive rather than a decoration that happens to move.
  *
- * Draggable and dismissable. It sits over the content on every page that wants
- * it, and anything that sits over content on every page has to be movable.
+ * Draggable, and that is the only way out of its way: whether it appears at
+ * all is an editorial decision, made per page in Directus, not a per-visitor
+ * one. It sits over the content on every page that wants it, and anything that
+ * sits over content on every page has to be movable.
  *
  * Media goes through `usePlaybackSource` like every other player — a `.mp4`
  * literal anywhere in here would be a bug (hard rule 5).
@@ -270,15 +272,6 @@ onMounted(async () => {
       >
         Next<span class="visually-hidden"> clip</span>
       </button>
-
-      <button
-        type="button"
-        class="ambient__control ambient__control--close"
-        aria-label="Hide the clip player"
-        @click="ambient.dismiss()"
-      >
-        &times;
-      </button>
     </div>
 
     <!--
@@ -363,13 +356,6 @@ onMounted(async () => {
 
 .ambient__control:hover {
   color: var(--accent);
-}
-
-/* Pushed to the far end — it is the one destructive control in the strip. */
-.ambient__control--close {
-  margin-inline-start: auto;
-  font-size: var(--text-sm);
-  line-height: 1;
 }
 
 .ambient__progress {

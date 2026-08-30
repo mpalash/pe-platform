@@ -19,22 +19,18 @@ export function useAmbientVideo() {
   const perPage = useState<Record<string, boolean>>('ambient:perPage', () => ({}))
 
   /**
-   * Dismissed for the session.
-   *
-   * Not persisted: the CMS toggle is the editorial control, and a dismissal
-   * that outlived the visit would quietly override an editor's decision on
-   * every page for ever. This is an escape hatch for right now.
-   */
-  const dismissed = useState('ambient:dismissed', () => false)
-
-  /**
    * Never on the archive. It has its own players, its own advisory gate, and a
    * second video playing over the galaxy would compete with all of them.
    */
   const allowedHere = computed(() => !route.path.startsWith('/archive'))
 
+  /*
+   * No per-visitor dismissal. Whether the player appears is decided by an
+   * editor, per page, in Directus — a viewer-side override would silently
+   * countermand that on every page for the rest of the visit.
+   */
   const enabled = computed(() =>
-    allowedHere.value && !dismissed.value && (perPage.value[route.path] ?? true),
+    allowedHere.value && (perPage.value[route.path] ?? true),
   )
 
   /**
@@ -59,7 +55,6 @@ export function useAmbientVideo() {
   return {
     enabled,
     resume,
-    dismiss: () => { dismissed.value = true },
     /** Called by a page that has an authored answer for its own path. */
     setForPath: (path: string, value: boolean) => { perPage.value[path] = value },
   }
