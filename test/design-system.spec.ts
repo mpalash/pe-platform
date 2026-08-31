@@ -461,3 +461,105 @@ describe('modal scrims', () => {
     expect(css).toMatch(/@supports not \(backdrop-filter: blur\(1px\)\)/)
   })
 })
+
+describe('elevation', () => {
+  const tokens = styles('tokens.elevation.css')
+  const primitives = styles('primitives.css')
+
+  function component(path: string): string {
+    return readFileSync(resolve(repoRoot, path), 'utf8')
+  }
+
+  /**
+   * The assignment from the four-step scale to the things that use it. It is
+   * the entire content of the system — the values themselves are just numbers,
+   * and what makes them a scale is that each level means one thing.
+   */
+  const ASSIGNMENT: Array<[level: number, path: string]> = [
+    [1, 'app/assets/styles/primitives.css'], // .content-page
+    [2, 'app/components/SiteHeader.vue'],
+    [2, 'app/components/archive/ArchiveToolbar.vue'],
+    [3, 'app/components/AmbientVideo.vue'],
+    [4, 'app/components/AuthModal.vue'],
+    [4, 'app/components/archive/ArchiveModalPlayer.vue'],
+    [4, 'app/components/archive/ArchiveAdvisoryModal.vue'],
+  ]
+
+  const FROSTED = ASSIGNMENT.map(([, path]) => path).filter(path => path.endsWith('.vue'))
+
+  it('defines four steps and no more', () => {
+    const defined = [...withoutComments(tokens).matchAll(/--shadow-(\d+)\s*:/g)]
+      .map(match => Number(match[1]))
+
+    expect(defined).toEqual([1, 2, 3, 4])
+  })
+
+  it('gets darker and wider at every step', () => {
+    // A "scale" whose steps are not ordered is four arbitrary shadows. The
+    // blur radius of the ambient (second) layer is the one that carries the
+    // sense of height, so that is what has to climb.
+    const blurs = [1, 2, 3, 4].map((level) => {
+      const value = tokens.match(new RegExp(`--shadow-${level}:([^;]*);`))?.[1] ?? ''
+      const radii = [...value.matchAll(/0 \d+px (\d+)px/g)].map(m => Number(m[1]))
+      expect(radii, `--shadow-${level} is not two layers`).toHaveLength(2)
+      return radii[1]!
+    })
+
+    for (let i = 1; i < blurs.length; i++) {
+      expect(blurs[i], `--shadow-${i + 1} is not softer than --shadow-${i}`)
+        .toBeGreaterThan(blurs[i - 1]!)
+    }
+  })
+
+  it.each(ASSIGNMENT)('level %i is claimed by %s', (level, path) => {
+    expect(component(path)).toContain(`--elevation: var(--shadow-${level})`)
+  })
+
+  it.each(FROSTED)('%s wears the shared .frosted class', (path) => {
+    expect(component(path)).toMatch(/class="[^"]*\bfrosted\b/)
+  })
+
+  it('nothing writes its own box-shadow', () => {
+    // The whole point of a fixed scale: a fifth depth appearing inline is how
+    // it stops meaning anything. `.frosted` is the only consumer.
+    const shadows = [...withoutComments(primitives).matchAll(/box-shadow:([^;]*);/g)]
+      .map(match => match[1]!.trim())
+
+    expect(shadows).toEqual(['var(--elevation)'])
+
+    for (const path of FROSTED) {
+      expect(component(path), `${path} writes its own box-shadow`)
+        .not.toMatch(/box-shadow:/)
+    }
+  })
+
+  it('frosts at the same radius as the scrim', () => {
+    // Two blurs stacked at different radii read as two unrelated materials,
+    // which is the one thing frosted glass must not do.
+    const frost = withoutComments(tokens).match(/--frost-blur:\s*([^;]+);/)?.[1]?.trim()
+    const scrim = withoutComments(primitives).match(/--scrim-blur:\s*([^;]+);/)?.[1]?.trim()
+
+    expect(frost).toBe(scrim)
+  })
+
+  it('degrades to an opaque surface where backdrop-filter is missing', () => {
+    // Translucent glass over unblurred video is unreadable in a way the opaque
+    // fallback never is. Same guarantee the scrim already makes.
+    const block = primitives.match(
+      /@supports not \(backdrop-filter: blur\(1px\)\) \{([\s\S]*?)\n\}/g,
+    )?.join('\n') ?? ''
+
+    expect(block).toContain('.frosted')
+  })
+
+  it('the ambient player is the only frosted surface without a border', () => {
+    // It is a video player, and its <video> is masked to an irregular shape —
+    // a 1px rectangle around it draws the frame the mask exists to avoid.
+    expect(component('app/components/AmbientVideo.vue')).toMatch(/\.ambient \{[\s\S]*?border: 0;/)
+
+    for (const path of FROSTED.filter(p => !p.endsWith('AmbientVideo.vue'))) {
+      expect(component(path), `${path} suppresses the shared border`)
+        .not.toMatch(/border:\s*(0|none)\s*;/)
+    }
+  })
+})

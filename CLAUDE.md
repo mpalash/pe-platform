@@ -149,6 +149,17 @@ docs/plan/
 18. **Do not cross phase boundaries.** Each phase doc has a Guardrails section. Phases are
     ordered by risk; skipping ahead defeats the ordering.
 
+19. **Depth is a four-step scale, and the assignment is fixed.** `--shadow-1..4`
+    in `tokens.elevation.css`; 1 = the content sheet, 2 = header and toolbar,
+    3 = the ambient player, 4 = modals. Surfaces get all of it — shadow, glass,
+    hairline border — from the one `.frosted` recipe in `primitives.css` and
+    set `--elevation`; **a `box-shadow`, a `backdrop-filter` or a panel
+    background written in a component is a bug.** The ambient player is the
+    single frosted surface with no border, because its video is masked to an
+    irregular shape and a 1px rectangle fights it. `--frost-blur` must stay
+    equal to `--scrim-blur`, or a panel and the scrim behind it read as two
+    unrelated materials. `test/design-system.spec.ts` holds all of this.
+
 ## Deployment
 
 Target is Railway: Postgres + Directus (`directus/directus:12.3.0`) + Nuxt, three

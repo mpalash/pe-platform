@@ -10,6 +10,7 @@
 @import './tokens.type.css';
 @import './tokens.space.css';
 @import './tokens.motion.css';
+@import './tokens.elevation.css';
 
 @import './reset.css';
 @import './base.css';

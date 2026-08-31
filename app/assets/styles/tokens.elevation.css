@@ -1,0 +1,79 @@
+/**
+ * Elevation tokens — a four-step shadow scale, and the frosted-glass material
+ * that goes with it.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ FOUR STEPS, AND ONLY FOUR. Every surface that lifts off the page picks  │
+ * │ one of them; nothing writes a bespoke box-shadow. A fifth value         │
+ * │ appearing inline is how a depth system stops meaning anything.          │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * The assignment is fixed and is the whole point of the scale:
+ *
+ *   1  content sheet   .content-page — the page's own body of text
+ *   2  chrome          SiteHeader, ArchiveToolbar — floats over the content
+ *   3  ambient player  AmbientVideo — floats over the chrome's plane
+ *   4  modals          auth, archive player, archive advisory — over everything
+ *
+ * ── Why the values look like this ────────────────────────────────────────────
+ *
+ * This site is near-black (--surface is #0b0b0c). A shadow tuned for a light
+ * UI — soft grey at 10% — is invisible here, and the usual reflex of raising
+ * the opacity just produces a dark smudge. What actually reads as depth on a
+ * dark ground is a shadow that is BLACKER THAN THE PAGE and spread wide, so
+ * the eye reads the falloff rather than the edge.
+ *
+ * Each step is two shadows, not one: a tight contact shadow that pins the
+ * element to the surface below, and a broad ambient shadow that gives it
+ * height. One blur can do one or the other, never both. Blur roughly doubles
+ * per step; opacity climbs gently, because past ~0.5 on this ground the
+ * shadow reads as a black box rather than as distance.
+ */
+
+:root {
+  /* 1 — resting on the page. Barely there; enough to separate a sheet of text
+     from the ground it sits on. */
+  --shadow-1:
+    0 1px 2px rgb(0 0 0 / 0.3),
+    0 2px 8px rgb(0 0 0 / 0.22);
+
+  /* 2 — lifted. Chrome that floats over content and must not be mistaken for
+     part of it. */
+  --shadow-2:
+    0 2px 4px rgb(0 0 0 / 0.34),
+    0 6px 18px rgb(0 0 0 / 0.3);
+
+  /* 3 — floating free. The ambient player is draggable and belongs to no
+     layout; the shadow is what says so. */
+  --shadow-3:
+    0 4px 8px rgb(0 0 0 / 0.38),
+    0 12px 32px rgb(0 0 0 / 0.36);
+
+  /* 4 — modal. The largest gap in the scale, deliberately: a dialog has to
+     read as being in front of the entire page, not one step above it. */
+  --shadow-4:
+    0 8px 16px rgb(0 0 0 / 0.42),
+    0 24px 64px rgb(0 0 0 / 0.44);
+
+  /* ─── Frosted glass ───────────────────────────────────────────────────────
+   *
+   * The material every elevated surface is made of. Three numbers, declared
+   * once, consumed by the `.frosted` recipe in primitives.css.
+   *
+   * 16px matches --scrim-blur. That is not a coincidence and should stay true:
+   * a panel and the scrim behind it blurring by different amounts reads as two
+   * unrelated materials stacked, which is exactly what frosted glass is not.
+   *
+   * The desaturation is what separates "frosted" from "smeared" — without it,
+   * bright content behind the panel bleeds through as colour blotches. Same
+   * reasoning, same value, as the scrim.
+   *
+   * 88% is the highest opacity at which the blur is still legible as an
+   * effect. Below about 80% the text on top starts fighting whatever is
+   * behind it; contrast on the darkest pairing (--ink-faint on a translucent
+   * --surface-raised over a lit scrim) is ~5:1 at this value, and drops fast.
+   */
+  --frost-blur: 16px;
+  --frost-saturate: 0.6;
+  --frost-opacity: 88%;
+}

@@ -234,7 +234,7 @@ watch(() => props.item.id, () => {
       @click="emit('close')"
     />
 
-    <div class="modal__panel">
+    <div class="modal__panel frosted">
       <div class="modal__main">
         <div class="modal__stage">
           <video
@@ -474,6 +474,12 @@ watch(() => props.item.id, () => {
  * be unconditional, which is what actually stops the jump.
  */
 .modal__panel {
+  /* Level 4, the top of the scale, and the largest gap in it: a dialog reads
+     as being in front of the whole page rather than one step above it. Glass
+     and border come from `.frosted` in primitives.css. */
+  --elevation: var(--shadow-4);
+  --frost-base: var(--surface-raised);
+
   --modal-meta: 19rem;
   --modal-chrome: 3rem; /* the controls strip under the video */
 
@@ -483,8 +489,6 @@ watch(() => props.item.id, () => {
     100%,
     calc((92svh - var(--modal-chrome)) * 16 / 9 + var(--modal-meta))
   );
-  background: var(--surface-raised);
-  border: 1px solid var(--rule);
 
   /* The panel never scrolls; the metadata column does. A scrolling panel would
      move the video when a long description arrived. */

@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
     -->
     <div class="advisory-gate__scrim scrim" />
 
-    <div class="advisory-gate__panel">
+    <div class="advisory-gate__panel frosted">
       <Stack space="m">
         <h1
           id="advisory-title"
@@ -172,13 +172,17 @@ onBeforeUnmount(() => {
  */
 
 .advisory-gate__panel {
+  /* Level 4, the top of the scale, and the largest gap in it: a dialog reads
+     as being in front of the whole page rather than one step above it. Glass
+     and border come from `.frosted` in primitives.css. */
+  --elevation: var(--shadow-4);
+  --frost-base: var(--surface-raised);
+
   position: relative;
   inline-size: min(34rem, 100%);
   max-block-size: calc(100dvh - var(--space-2xl));
   overflow-y: auto;
   padding: var(--space-xl);
-  background: var(--surface-raised);
-  border: 1px solid var(--rule-strong);
 }
 
 .advisory-gate__title {

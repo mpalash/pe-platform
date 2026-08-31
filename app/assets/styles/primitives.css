@@ -207,6 +207,80 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   FROSTED — the material every elevated surface is made of.
+
+   One recipe: translucent surface, hairline border, backdrop blur, and a step
+   from the four-step shadow scale in tokens.elevation.css. Four components and
+   the content page used to declare four slightly different versions of the
+   first three of those, which is how a "system" ends up with three blur radii.
+
+   Tuned through custom properties rather than by overriding declarations:
+
+     --elevation    which shadow step. Defaults to 1; set it, do not write a
+                    box-shadow.
+     --frost-base   the surface colour the glass is tinted with.
+     --frost-opacity how much of that colour. Only lower it for something with
+                    no text on it.
+
+   `.content-page` is in the selector because it is level 1 and is always
+   frosted — it is rendered from three different templates and adding a class
+   to each of them is three chances to forget.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.frosted,
+.content-page {
+  --elevation: var(--shadow-1);
+  --frost-base: var(--surface);
+
+  background: color-mix(in srgb, var(--frost-base) var(--frost-opacity), transparent);
+  /*
+   * Subtle by intent. --rule is the hairline token: on this ground it reads as
+   * the edge of a pane of glass catching light, not as a drawn frame. The
+   * shadow does the work of separating the surface; the border only gives it
+   * a termination, and a heavier one takes over and flattens the depth.
+   */
+  border: 1px solid var(--rule);
+  box-shadow: var(--elevation);
+
+  /*
+   * See the scrim below for why this is a `backdrop-filter` and not a `filter`,
+   * and why the desaturation is not optional.
+   */
+  backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-saturate));
+}
+
+/*
+ * No backdrop-filter: go opaque rather than translucent. A panel that assumes
+ * a blur and does not get one is a sheet of tinted glass over unblurred video,
+ * which is unreadable in a way the opaque version never is.
+ */
+@supports not (backdrop-filter: blur(1px)) {
+  .frosted,
+  .content-page {
+    background: var(--frost-base);
+  }
+}
+
+/*
+ * Inherited from SiteHeader, which did this first and alone; folded in here so
+ * every frosted surface behaves the same way.
+ *
+ * A static blur is not motion, so this is not the literal meaning of the query
+ * — but a full-viewport `backdrop-filter` is the single most expensive thing
+ * this site paints, it repaints on every scroll, and reduced-motion is the only
+ * signal a browser gives for "prefer the cheaper rendering". The surfaces stay
+ * exactly where they are and keep their border and shadow; they just stop being
+ * glass.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .frosted,
+  .content-page {
+    background: var(--frost-base);
+    backdrop-filter: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    CONTENT PAGE — the bordered wrapper every static page sits in.
 
    Global rather than scoped to a component because two different things render
@@ -241,8 +315,13 @@
      running, so this costs nothing the rest of the time. */
   margin: calc(var(--page-gap) + var(--banner-h, 0px)) auto var(--page-gap);
 
-  border: 1px solid var(--rule);
-  background: var(--surface);
+  /* Level 1 of the shadow scale — a sheet of text resting on the page, the
+     lowest thing in the system that is not the page itself. Tinted with
+     --surface-raised rather than --surface so the sheet reads as lifted: the
+     ground behind it is flat, so the blur alone has nothing to reveal. */
+  --elevation: var(--shadow-1);
+  --frost-base: var(--surface-raised);
+
   padding: var(--page-pad);
 }
 

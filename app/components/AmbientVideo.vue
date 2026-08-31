@@ -203,7 +203,7 @@ onMounted(async () => {
   <aside
     v-if="source.src"
     ref="panel"
-    class="ambient drag-panel"
+    class="ambient drag-panel frosted"
     :class="{ 'ambient--dragging': dragging }"
     :style="{ ...style, inlineSize: `${WIDTH}px` }"
     aria-label="Archive clips"
@@ -267,16 +267,32 @@ onMounted(async () => {
 
 <style scoped>
 .ambient {
+  /* Positioning comes from `.drag-panel`, and the glass from `.frosted` —
+     both in primitives.css. Level 3: it floats over the chrome, not with it. */
+  --elevation: var(--shadow-3);
+
   z-index: 35;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(12px);
+
+  /*
+   * The one frosted surface without a border, because it is a video player and
+   * the video is almost all of it. `.ambient__video` is masked to an irregular
+   * shape; a 1px rectangle around it draws the frame the mask exists to avoid,
+   * and the eye reads the disagreement between the two edges long before it
+   * reads either one.
+   */
+  border: 0;
 }
 
 .ambient--dragging {
-  border-color: var(--rule-strong);
+  /*
+   * The other panels signal a drag by strengthening their border. With none to
+   * strengthen, this borrows the top of the scale instead — which is the more
+   * literal thing to say anyway: while you are holding it, it is lifted.
+   */
+  --elevation: var(--shadow-4);
+
   user-select: none;
 }
 

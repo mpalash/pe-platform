@@ -93,7 +93,7 @@ const countLabel = computed(() => {
 <template>
   <div
     ref="panel"
-    class="toolbar drag-panel"
+    class="toolbar drag-panel frosted"
     :class="{ 'toolbar--dragging': dragging }"
     :style="style"
   >
@@ -363,7 +363,12 @@ const countLabel = computed(() => {
  * nowrap/scroll apparatus is gone.
  */
 .toolbar {
-  /* Positioning comes from `.drag-panel` in primitives.css. */
+  /* Positioning comes from `.drag-panel`, and the glass from `.frosted` —
+     both in primitives.css. Level 2, the same plane as the header: the two are
+     peers, and giving one more depth than the other would imply an order
+     between them that dragging can reverse at any moment. */
+  --elevation: var(--shadow-2);
+
   z-index: 30;
   /* 240px, as specified — and `inline-size` too, not just a max, so the panel
      does not resize as the clip count changes length underneath it. */
@@ -375,11 +380,6 @@ const countLabel = computed(() => {
   gap: var(--space-s);
 
   padding: var(--space-s);
-  border: 1px solid var(--rule);
-  /* Translucent with a blur: video and the galaxy pass underneath, and an
-     opaque slab this size would block too much of them. */
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(12px);
 
   /* The panel is taller than a phone once every filter is open. */
   max-block-size: calc(100dvh - 48px);

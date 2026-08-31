@@ -67,7 +67,7 @@ watch(navOpen, () => nextTick(reclamp))
 <template>
   <header
     ref="panel"
-    class="site-header drag-panel"
+    class="site-header drag-panel frosted"
     :class="{ 'site-header--dragging': dragging }"
     :style="style"
   >
@@ -201,7 +201,10 @@ watch(navOpen, () => nextTick(reclamp))
 
 <style scoped>
 .site-header {
-  /* Positioning comes from `.drag-panel` in primitives.css. */
+  /* Positioning comes from `.drag-panel`, and the glass from `.frosted` —
+     both in primitives.css. Level 2: chrome floating over the content sheet. */
+  --elevation: var(--shadow-2);
+
   z-index: 40;
   inline-size: max-content;
   min-inline-size: 9rem;
@@ -212,11 +215,6 @@ watch(navOpen, () => nextTick(reclamp))
   gap: var(--space-s);
 
   padding: var(--space-s);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  border: 1px solid var(--rule);
-  /* The panel floats over video and a black galaxy, so it needs to separate
-     itself from both. A backdrop blur does that without an opaque slab. */
-  backdrop-filter: blur(12px);
 }
 
 .site-header--dragging {
@@ -334,13 +332,6 @@ watch(navOpen, () => nextTick(reclamp))
 @media (width >= 34rem) {
   .site-header__toggle {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .site-header {
-    backdrop-filter: none;
-    background: var(--surface);
   }
 }
 </style>
