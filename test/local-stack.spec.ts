@@ -23,8 +23,8 @@ describe('local stack', () => {
     }
   })
 
-  it('runs Postgres, Directus and Mailpit', () => {
-    for (const service of ['postgres:', 'directus:', 'mailpit:']) {
+  it('runs Postgres, Directus, Mailpit and Umami', () => {
+    for (const service of ['postgres:', 'directus:', 'mailpit:', 'umami:']) {
       expect(compose).toContain(service)
     }
   })
@@ -50,7 +50,7 @@ describe('local stack', () => {
     const services = (servicesBlock.match(/^ {2}\w[\w-]*:$/gm) ?? []).length
     const healthchecks = (servicesBlock.match(/^ {4}healthcheck:$/gm) ?? []).length
 
-    expect(services).toBe(3)
+    expect(services).toBe(4)
     expect(healthchecks).toBe(services)
   })
 })

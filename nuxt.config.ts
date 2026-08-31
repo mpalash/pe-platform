@@ -101,6 +101,21 @@ export default defineNuxtConfig({
       mediaBase: '', // NUXT_PUBLIC_MEDIA_BASE — CloudFront, once it exists
       mediaOrigin: '', // NUXT_PUBLIC_MEDIA_ORIGIN — S3 bucket, dev only
       mediaAllowOriginFallback: false, // NUXT_PUBLIC_MEDIA_ALLOW_ORIGIN_FALLBACK
+
+      /*
+       * Analytics (ADR-006). Self-hosted Umami — see app/composables/
+       * useAnalytics.ts, which is the only file allowed to talk to the tracker.
+       *
+       * Both are public by nature: the website id is embedded in the tracker
+       * script tag that every visitor downloads, so it identifies a site rather
+       * than authorising anything. There is no Umami credential in the app at
+       * all — reading the dashboard is a separate login.
+       *
+       * Empty is the committed default and means NO tracker is loaded. A fresh
+       * clone runs with no analytics and needs no setup (hard rule 2).
+       */
+      umamiHost: '', // NUXT_PUBLIC_UMAMI_HOST
+      umamiWebsiteId: '', // NUXT_PUBLIC_UMAMI_WEBSITE_ID
     },
   },
 

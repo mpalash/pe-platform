@@ -19,13 +19,47 @@ const {
   searchTerm, binRange, shuffled, bookmarksOnly, count, total, hasActiveFilters, bookmarks,
 } = archive
 
+/**
+ * Long enough for a real phrase, short enough that a pasted paragraph does not
+ * become a permanent row. Umami stores event properties as text; nothing
+ * truncates for us.
+ */
+const TERM_MAX_LENGTH = 80
+
 /** Debounced so a 30k-document MiniSearch query does not run per keystroke. */
 const draft = ref(searchTerm.value)
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
+const { track } = useAnalytics()
+
 watch(draft, (value) => {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => archive.setSearchTerm(value), 250)
+  debounceTimer = setTimeout(() => {
+    archive.setSearchTerm(value)
+
+    /*
+     * The term IS recorded — a deliberate reversal, taken knowingly (ADR-006).
+     * What people look for in a 30,000-clip archive is editorial information
+     * that nothing else can supply, and the alternative was a bare count that
+     * answers no question anyone actually has.
+     *
+     * What makes it defensible is that it is not joined to a person: Umami
+     * stores no identifier that survives the day, so this is a list of terms,
+     * not a list of what any individual searched. Do not add anything here
+     * that would change that.
+     *
+     * Normalised so "Desert", "desert" and " desert " are one row rather than
+     * three, and capped because the field is a paste target as much as a
+     * search box.
+     */
+    const term = value.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, TERM_MAX_LENGTH)
+    if (!term) return
+
+    // `count` is a computed over the search, so it is already the new number
+    // by the time this reads it. Zero-result searches are the useful half —
+    // they are the archive failing to answer, and they are invisible otherwise.
+    track('archive-search', { term, results: count.value })
+  }, 250)
 })
 
 // Keep the field in step when something else clears the filters.
@@ -36,6 +70,11 @@ watch(searchTerm, (value) => {
 onBeforeUnmount(() => clearTimeout(debounceTimer))
 
 const searchField = useTemplateRef<HTMLInputElement>('searchField')
+
+function selectView(next: ArchiveView): void {
+  if (next !== view.value) track('archive-view', { view: next })
+  view.value = next
+}
 
 function clearSearch(): void {
   draft.value = ''
@@ -342,7 +381,7 @@ const countLabel = computed(() => {
             class="toolbar__view"
             :class="{ 'toolbar__view--on': view === option.id }"
             :aria-pressed="view === option.id"
-            @click="view = option.id"
+            @click="selectView(option.id)"
           >
             {{ option.label }}
           </button>

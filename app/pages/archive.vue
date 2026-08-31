@@ -24,6 +24,14 @@ const { view } = useArchiveView()
 
 const advisory = useArchiveAdvisory()
 
+/*
+ * Traffic for this page is an ordinary Umami pageview. This adds the one thing
+ * a pageview cannot say: how long anyone actually looked. It stands in for
+ * per-clip play events, which the feed's autoplay would make meaningless.
+ * (ADR-006)
+ */
+useArchiveDwell()
+
 onMounted(async () => {
   archive.loadBookmarks()
   await archive.load()

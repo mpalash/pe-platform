@@ -100,6 +100,7 @@ The complete allowed list. Adding to it requires a new ADR in this file.
 | **AWS CloudFront** | S3 egress at $0.09/GB is not survivable for video. Free S3→CF origin pulls, 1TB/mo free tier. | **Very low** — plain public files from our bucket. Swapping to Bunny is DNS + config. |
 | **AWS SES** | Transactional send — magic links, booking confirmations. $0.10/1k. | Very low — SMTP is SMTP. Mailpit substitutes locally. |
 | **Listmonk** *(only if a newsletter is actually wanted)* | Marketing list stays ours. Double opt-in, unsubscribes, bounces. | Low — self-hosted, exports to CSV. |
+| **Umami** (self-hosted) | Traffic and key events without a SaaS. One Node service against the Postgres we already run — events land in our own database, joinable against our own tables. Cookieless, so no consent banner. | **Low** — the data is rows in our Postgres. |
 
 **Explicitly rejected:** Hygraph and SaaS CMSes (content in someone else's system, priced per
 call); Payload (a Next.js framework — wrong for a Vue team); Cal.com and scheduling SaaS
@@ -244,6 +245,60 @@ both send via SMTP, so the only difference between environments is configuration
 
 ---
 
+### ADR-006 — Umami, self-hosted, for analytics; dwell time instead of clip events
+
+**Context.** The platform needs traffic figures and a handful of key events — enough to know
+what people actually do here, and enough to report to a funder or a festival. Rule 1 puts any
+such tool behind an ADR, and Phase 7's guardrails name analytics explicitly.
+
+Three options were compared. **Plausible Community Edition** needs ClickHouse alongside its own
+Postgres — three services and ~4GB of RAM, which makes `docker compose up` materially heavier
+and adds a datastore we would operate for nothing else. **Any hosted analytics** (Plausible
+Cloud, Umami Cloud, Fathom) breaks rule 2: it cannot be exercised with no vendor network
+access. **Umami self-hosted** is a single Node service — ~200MB idle — that can use the
+Postgres already in the stack.
+
+**Decision.** Umami, self-hosted, in its own database inside the existing Postgres instance.
+Pinned to `ghcr.io/umami-software/umami:3.3.1`, a container locally and a fourth Railway
+service deployed.
+
+**Clip plays are deliberately not instrumented per clip.** The archive autoplays as you
+scroll, so a per-clip event fires without anyone choosing anything — it would be
+volume-explosive and it would not mean what the name says. **Dwell time on `/archive` is the
+proxy**, measured only while the tab is visible and only after the advisory is accepted, so
+the number is time spent looking rather than time spent reading a warning.
+
+**Consequences.**
+- **This is not the cheap option, and that is the trade.** Umami Cloud's free tier is $0 for
+  100k events/month; self-hosting costs roughly **$3–5/month** on Railway, almost entirely
+  RAM. We are paying that for rule 2 and for owning the data.
+- **Events are rows in our Postgres**, with properties in `jsonb`. A `clip` event can be
+  joined against the archive data in SQL. This is the same reasoning as ADR-001, and it is
+  what makes the exit cost low.
+- **Search terms are recorded.** Considered and rejected first, then taken
+  deliberately: what people look for in a 30,000-clip archive is editorial
+  information nothing else supplies, and a bare "a search happened" count
+  answers no question anyone has. It is defensible because the terms are not
+  joined to a person — Umami keeps no identifier that outlives the day — so
+  this is a list of what the archive was asked for, not of who asked. The
+  distinction to hold is **not "nothing a visitor typed" but "nothing that ties
+  back to a visitor"**. Terms are normalised and capped at 80 characters, and
+  the result count travels with them so zero-result searches are visible.
+- **Cookieless, no PII, no consent banner.** No cookie is set and no IP is stored. The
+  Disclaimers page still needs a plain-language line saying analytics exist and what they
+  collect — transparency is required (GDPR Art. 13) even where consent is not.
+- **Umami gets its own database**, not the Directus one. Sharing would put its tables in front
+  of every editor browsing the Directus admin.
+- **Umami's container has a known memory-growth issue.** Railway meters RAM per GB, so an
+  unbounded container is an unbounded bill. The deployed service carries a memory limit.
+- **Retention is unresolved.** Raw events accumulate; nothing prunes them yet. Left open
+  rather than guessed — see Q7.
+- **Analytics must never become load-bearing.** If Umami is down or blocked by an extension,
+  the site behaves identically. Every call site goes through `useAnalytics()`, which is a
+  no-op when unconfigured — which is also its state in a fresh clone.
+
+---
+
 ## 5. Phase map
 
 ```
@@ -317,6 +372,7 @@ Restated for the coding agent in `CLAUDE.md`.
 | **Q4** | Archive inventory: item count, total GB, containers, codecs, and faststart status? | 3 | Determines what needs remuxing before it can be served. |
 | **Q5** | Is a newsletter wanted at all, now or later? | 7 | Determines whether Listmonk enters the dependency budget. |
 | **Q6** | Magic-link session lifetime — how long should someone stay signed in? | 5 | An art platform used occasionally probably wants weeks, not hours. |
+| **Q7** | Analytics retention — how long are raw events kept before rolling up to daily counts? | 7 | Funder and festival reporting may need years; raw rows accumulate for ever otherwise. |
 
 ---
 

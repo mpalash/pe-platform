@@ -159,8 +159,8 @@ Per `DEPLOYMENT.md` §5, and in this order:
 | | |
 |---|---|
 | Project | `pe-platform` — Railway project `df93e800-51c1-4b2b-9e6f-2c69c6f7d59d`, region EU West (Amsterdam) |
-| Site | https://pe-platform.up.railway.app |
-| Directus | https://pe-cms.up.railway.app |
+| Site | https://next.purgatoryedit.com |
+| Directus | https://cms.purgatoryedit.com |
 
 Credentials for the deployed environment are in `.env.railway` — gitignored by
 the `.env.*` rule, and the file the schema/seed commands are sourced from:
@@ -186,3 +186,59 @@ was really guarding.
 
 A file called `_deploy-storage-check.png` sits in Directus files from the S3
 check above. Nothing references it; delete it whenever.
+
+---
+
+## 6. Analytics — Umami (ADR-006)
+
+Added after the deploy above; not part of it. **Nothing here is load-bearing** —
+if this service never gets created, the site runs exactly as it does now, with
+`useAnalytics()` a no-op.
+
+1. **Database.** Umami wants its own, in the Postgres from §1:
+
+   ```
+   railway connect Postgres
+   CREATE DATABASE umami;
+   ```
+
+2. **Service.** New service from image `ghcr.io/umami-software/umami:3.3.1`.
+   Variables:
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_TYPE` | `postgresql` |
+   | `DATABASE_URL` | the §1 connection string with `/railway` swapped for `/umami` |
+   | `APP_SECRET` | a fresh random string — **set once and never rotate**; it salts the daily visitor hash, so changing it makes every returning visitor look new |
+   | `DISABLE_TELEMETRY` | `1` |
+
+   **Set a memory limit on this service.** Umami's container has a known
+   memory-growth issue, and Railway meters RAM per GB — an unbounded container
+   is an unbounded bill. Expect ~$3–5/month at 250–400MB.
+
+3. **First login.** The default is `admin` / `umami`. **Change it before
+   attaching a domain**, or the dashboard is public with a documented password.
+
+4. **Website.** Add one for the site's domain and copy its ID.
+
+5. **Nuxt variables**, on the Nuxt service:
+
+   ```
+   NUXT_PUBLIC_UMAMI_HOST=https://<umami-service-domain>
+   NUXT_PUBLIC_UMAMI_WEBSITE_ID=<id from step 4>
+   ```
+
+   Both are public by design — the website id ships inside the tracker script
+   tag that every visitor downloads. There is no Umami credential in the app.
+
+**Ordering.** This one is not subject to the schema→Directus→Nuxt rule in
+`DEPLOYMENT.md` §5; Umami owns its own schema and Nuxt does not query it. But
+set the Nuxt variables **last**, or the tracker 404s until the service is up.
+
+**Staging.** Leave `NUXT_PUBLIC_UMAMI_*` unset on `next.` — it serves the same
+content as production and would otherwise pollute the numbers with your own
+testing. Empty means no tracker at all.
+
+**Still owed:** a plain-language line on the Disclaimers page saying analytics
+exist and what they collect. Cookieless and PII-free means no consent banner is
+required; it does not mean transparency is optional (GDPR Art. 13).

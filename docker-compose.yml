@@ -18,6 +18,9 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pg_data:/var/lib/postgresql/data
+      # Creates the `umami` database (ADR-006). Runs ONLY on a fresh volume —
+      # see the script for the one-liner an existing checkout needs.
+      - ./scripts/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-directus} -d ${POSTGRES_DB:-pe_platform}']
       interval: 5s
@@ -139,6 +142,54 @@ services:
           'node',
           '-e',
           "fetch('http://127.0.0.1:8055/server/ping').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  # ─── Analytics (ADR-006) ─────────────────────────────────────────────────────
+  # Traffic and key events, self-hosted, cookieless. Shares the Postgres above
+  # but in its own database, so Directus never introspects these tables.
+  #
+  # Nothing here is load-bearing: if this container is down, or an ad blocker
+  # eats the tracker, the site behaves identically. `useAnalytics()` is a no-op
+  # when NUXT_PUBLIC_UMAMI_HOST is empty, which is its state in a fresh clone —
+  # so a first `docker compose up` needs no analytics setup at all.
+  umami:
+    image: ghcr.io/umami-software/umami:3.3.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '${UMAMI_PORT:-3001}:3000'
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER:-directus}:${POSTGRES_PASSWORD:-directus}@postgres:5432/${UMAMI_DB:-umami}
+
+      # Salts the daily visitor hash. Rotating it makes returning visitors look
+      # new, so it is set once per environment and left alone.
+      APP_SECRET: ${UMAMI_APP_SECRET:-local-development-umami-secret}
+
+      # Umami phones home with usage statistics by default. Off — a platform
+      # that self-hosts analytics to avoid sending data to a third party should
+      # not send data to a third party. (ADR-006)
+      DISABLE_TELEMETRY: '1'
+
+      # The tracker is served at the default /script.js on purpose. Umami can
+      # rename it to slip past blocklists; doing that on a site whose whole
+      # posture is "we do not track you" would be dishonest, and a blocked
+      # tracker is a reader exercising a preference we said we respect.
+    healthcheck:
+      # node is guaranteed present in this image; curl and wget are not — same
+      # reasoning as the Directus probe above.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/heartbeat').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 5s
       timeout: 10s

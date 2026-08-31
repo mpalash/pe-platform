@@ -45,6 +45,10 @@ pnpm archive:pool          # resample the ambient clip pool (runs on build)
 
 Mailpit web UI: http://localhost:8025 — this is where sign-in links arrive in development.
 
+Umami dashboard: http://localhost:3001 — traffic and events (ADR-006). Default
+login `admin` / `umami`. It is **optional**: leave `NUXT_PUBLIC_UMAMI_WEBSITE_ID`
+empty and no tracker loads at all.
+
 ## Layout
 
 ```
@@ -57,6 +61,7 @@ app/
   composables/           # useDraggable owns the floating-panel chrome
   layouts/
   pages/
+  plugins/               # analytics.client.ts loads the tracker; nothing else
 server/
   api/
     auth/              # magic-link request + verify, session
@@ -160,6 +165,20 @@ docs/plan/
     equal to `--scrim-blur`, or a panel and the scrim behind it read as two
     unrelated materials. `test/design-system.spec.ts` holds all of this.
 
+20. **Analytics is never load-bearing, and `useAnalytics()` is its only door.**
+    Self-hosted Umami (ADR-006). Nothing outside `useAnalytics.ts` may touch
+    `window.umami`; every event name comes from the `AnalyticsEvent` union so a
+    typo fails typecheck rather than splitting a chart. **Never pass an email,
+    a user id, a session id, or the id of a clip someone watched** — the
+    analytics database sits outside the cookieless story that makes the rest of
+    this need no consent banner. The test is not "nothing a visitor typed" but
+    **nothing that ties back to a visitor**: search terms are recorded on
+    purpose, and are defensible only because Umami keeps no identifier that
+    outlives the day. **Clip plays are not
+    instrumented**: the feed autoplays, so dwell time on `/archive`
+    (`useArchiveDwell`) is the proxy, counted only while visible and only after
+    the advisory is accepted. `test/analytics.spec.ts` guards all of it.
+
 ## Deployment
 
 Target is Railway: Postgres + Directus (`directus/directus:12.3.0`) + Nuxt, three
@@ -243,6 +262,21 @@ have to be named in `scripts/seed-settings.ts`.
   zero — textures load correctly and nothing appears. `CAM_REST_DISTANCE` is 55,
   inside the disc, and it must stay inside it. When thumbnails "don't work",
   check the camera distance before touching the loading code.
+
+- **Umami's `track()` silently drops a bare payload object.** To file an event
+  against a URL other than the current one you must pass a FUNCTION —
+  `track(payload => ({ ...payload, url }))`. Passing `track({ name, data, url })`
+  is accepted, returns a Promise, and **records nothing**: no error, no console
+  warning, indistinguishable from an ad blocker. This is why the archive's dwell
+  event needs the function form — it fires in `onBeforeUnmount`, by which point
+  the router has already changed `location.pathname` and the event would
+  otherwise be attributed to the page you navigated *to*.
+
+- **`document.hidden` is `true` in the automation browser** when its window is
+  not foregrounded, which makes anything gated on visibility look broken. The
+  dwell timer refusing to start is the correct behaviour, not a bug — override
+  `document.hidden` before concluding otherwise. Same family as the frozen-rAF
+  trap that made the galaxy's thumbnails look like a loading problem.
 
 - **New exports under `shared/` need a dev-server restart.** Auto-import does
   not rescan on HMR, so a freshly added export is `undefined` at runtime while

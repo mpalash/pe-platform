@@ -30,6 +30,18 @@ const { data: content } = await useFetch<ArchiveAdvisory>('/api/content/archive-
   key: 'archive-advisory',
 })
 
+/*
+ * Which way the gate was resolved. The decline rate is the only number that
+ * says whether the warning is doing its job or simply turning people away, and
+ * it is invisible in a pageview — both outcomes happen on the same URL.
+ */
+const { track } = useAnalytics()
+
+function accept(): void {
+  track('advisory', { outcome: 'accepted' })
+  advisory.accept()
+}
+
 const dialog = useTemplateRef<HTMLElement>('dialog')
 const acceptButton = useTemplateRef<HTMLElement>('acceptButton')
 
@@ -135,13 +147,14 @@ onBeforeUnmount(() => {
             ref="acceptButton"
             type="button"
             class="advisory-gate__enter"
-            @click="advisory.accept()"
+            @click="accept"
           >
             {{ content.accept_label }}
           </button>
           <NuxtLink
             :to="content.decline_path"
             class="advisory-gate__leave"
+            @click="track('advisory', { outcome: 'declined' })"
           >
             {{ content.decline_label }}
           </NuxtLink>

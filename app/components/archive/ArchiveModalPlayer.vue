@@ -25,6 +25,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [], prev: [], next: [] }>()
 
 const archive = useArchive()
+const { track } = useAnalytics()
 
 /**
  * COMPUTED, not destructured at setup.
@@ -443,6 +444,7 @@ watch(() => props.item.id, () => {
             :href="item.srcURL"
             target="_blank"
             rel="noreferrer"
+            @click="track('source-out')"
           >Original source ↗</a>
         </p>
       </div>

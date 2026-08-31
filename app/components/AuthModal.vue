@@ -14,6 +14,7 @@
  */
 const authModal = useAuthModal()
 const auth = useAuth()
+const { track } = useAnalytics()
 
 const email = ref('')
 const name = ref('')
@@ -40,6 +41,9 @@ async function submit(): Promise<void> {
   try {
     await auth.requestLink(email.value, isRegister.value ? name.value : undefined)
     state.value = 'sent'
+    // Mode only — never the address. The completion half is fired by
+    // plugins/analytics.client.ts off the verify redirect.
+    track('signin-requested', { mode: isRegister.value ? 'register' : 'signin' })
   }
   catch (cause) {
     state.value = 'failed'
@@ -51,6 +55,13 @@ async function submit(): Promise<void> {
     errorMessage.value = status === 429 || status === 400
       ? (message ?? 'That did not work.')
       : 'Could not send the link. Please try again.'
+
+    /*
+     * Hard rule 9: a magic link that fails to send is a user who cannot sign in
+     * and has no way to tell you. The server logs its side; this is the half
+     * that shows up in a chart next to `signin-requested`.
+     */
+    track('signin-failed', { reason: status === 429 ? 'rate-limited' : 'send-failed' })
   }
 }
 

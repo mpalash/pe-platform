@@ -439,6 +439,32 @@ const PAGES: PageSpec[] = [
         + '</ul>',
         { title: 'Copyright disclaimer', anchor: 'copyright' },
       ),
+      /*
+       * BASELINE COPY — written to be replaced. It states what is actually
+       * true of the implementation (ADR-006) rather than boilerplate: no
+       * cookies, no IP stored, no third party, terms recorded but not tied to
+       * a person. Keep those facts if you rewrite the voice; they are what
+       * makes the "no consent banner" position hold up.
+       */
+      richtext(
+        '<p>This site counts visits, and it does so without tracking you. There are no '
+        + 'cookies, nothing is stored on your device, and your IP address is never kept. '
+        + 'Nothing is shared with an advertiser or an analytics company — the software is '
+        + 'open-source and runs on our own server, alongside the rest of the site.</p>'
+        + '<p>What is recorded: the page visited, roughly where in the world the request '
+        + 'came from, the referring site, and general browser and device type. For the '
+        + 'archive specifically, we record how long the archive was open and which terms '
+        + 'were searched for — the search terms tell us what people come here looking for '
+        + 'and what the archive fails to answer. We do <strong>not</strong> record which '
+        + 'clips any individual watched.</p>'
+        + '<p>None of this is joined to a person. There is no identifier that survives the '
+        + 'day, so these are counts and lists, not profiles, and there is nothing here that '
+        + 'could be traced back to you.</p>'
+        + '<p>If your browser sends a Do Not Track signal, we honour it and record nothing '
+        + 'at all. Any content blocker will also stop this outright, and the site works '
+        + 'exactly the same either way.</p>',
+        { title: 'Analytics and privacy', anchor: 'privacy' },
+      ),
       advisory({
         title: 'Visual disclaimer & advisory',
         anchor: 'visual',
