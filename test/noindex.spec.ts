@@ -3,8 +3,16 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const repoRoot = resolve(import.meta.dirname, '..')
-const middleware = readFileSync(resolve(repoRoot, 'server/middleware/noindex.ts'), 'utf8')
+const middlewareSource = readFileSync(resolve(repoRoot, 'server/middleware/noindex.ts'), 'utf8')
 const nuxtConfig = readFileSync(resolve(repoRoot, 'nuxt.config.ts'), 'utf8')
+
+/**
+ * Comments stripped before asserting. The hostname check below is about the
+ * LOGIC — a host compared in code is what silently misses the next domain —
+ * and the file's header legitimately names `next.purgatoryedit.com` and the
+ * generated railway.app hosts while explaining why it does not match on them.
+ */
+const middleware = middlewareSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
 /**
  * The staging host serves the same archive as the live site. The header is the
