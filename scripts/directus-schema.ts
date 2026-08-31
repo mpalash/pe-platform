@@ -104,9 +104,19 @@ async function apply(force: boolean): Promise<void> {
 
   const { data: diff } = await diffResponse.json() as { data: unknown }
 
+  /*
+   * The payload is the diff object exactly as `/schema/diff` returned it —
+   * `{ hash, diff }` — NOT wrapped in `{ data }`. Directus validates the hash
+   * against the live schema so a diff taken against a database that has since
+   * moved is rejected rather than half-applied. Wrapping it loses the hash and
+   * the endpoint answers 400 `"hash" is required`.
+   *
+   * This only ever bites against a database whose schema differs from the
+   * snapshot: locally the diff is 204 and this line never runs.
+   */
   await api('/schema/apply', {
     method: 'POST',
-    body: JSON.stringify({ data: diff }),
+    body: JSON.stringify(diff),
   })
 
   console.log('✓ Committed schema applied to Directus.')
