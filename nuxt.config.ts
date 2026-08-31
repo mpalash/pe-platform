@@ -68,6 +68,14 @@ export default defineNuxtConfig({
     // this lets anyone read unpublished content.
     previewToken: 'local-development-preview-token', // NUXT_PREVIEW_TOKEN
 
+    /*
+     * Search-engine visibility for the whole deployment. True on staging
+     * (`next.purgatoryedit.com`), unset in production. server/middleware/
+     * noindex.ts is the only reader; see it for why this is a deployment
+     * property rather than a route rule.
+     */
+    noindex: false, // NUXT_NOINDEX
+
     sessionCookieName: 'pe_session', // NUXT_SESSION_COOKIE_NAME
     // Secure cookies do not set over plain HTTP, so localhost needs this false.
     // Deployed environments set NUXT_SESSION_COOKIE_SECURE=true. (Phase 1 §1.5)
