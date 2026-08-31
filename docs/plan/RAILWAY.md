@@ -160,7 +160,7 @@ Per `DEPLOYMENT.md` §5, and in this order:
 |---|---|
 | Project | `pe-platform` — Railway project `df93e800-51c1-4b2b-9e6f-2c69c6f7d59d`, region EU West (Amsterdam) |
 | Site | https://pe-platform.up.railway.app |
-| Directus | https://directus-production-7f98.up.railway.app |
+| Directus | https://pe-cms.up.railway.app |
 
 Credentials for the deployed environment are in `.env.railway` — gitignored by
 the `.env.*` rule, and the file the schema/seed commands are sourced from:
