@@ -229,12 +229,12 @@ onMounted(async () => {
       preload="metadata"
       tabindex="0"
       :aria-label="`Archive clip${clip?.name ? `: ${clip.name}` : ''}. Drag to move; arrow keys reposition, Home resets.`"
+      v-bind="handleProps"
       @ended="onEnded"
       @error="onError"
       @timeupdate="onTimeUpdate"
       @play="playing = true"
       @pause="playing = false"
-      v-bind="handleProps"
     />
 
     <div class="ambient__bar">
