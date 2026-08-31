@@ -159,7 +159,7 @@ Per `DEPLOYMENT.md` §5, and in this order:
 | | |
 |---|---|
 | Project | `pe-platform` — Railway project `df93e800-51c1-4b2b-9e6f-2c69c6f7d59d`, region EU West (Amsterdam) |
-| Site | https://nuxt-production-67f8.up.railway.app |
+| Site | https://pe-platform.up.railway.app |
 | Directus | https://directus-production-7f98.up.railway.app |
 
 Credentials for the deployed environment are in `.env.railway` — gitignored by
