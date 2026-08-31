@@ -31,7 +31,10 @@ KEY=<openssl rand -hex 32>
 SECRET=<openssl rand -hex 32>
 ADMIN_EMAIL=<you>
 ADMIN_PASSWORD=<generate, then change on first login>
-PUBLIC_URL=https://<directus-domain>
+ADMIN_TOKEN=<openssl rand -hex 24>
+PUBLIC_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+HOST=::
+PORT=8055
 CORS_ENABLED=true
 CORS_ORIGIN=https://<nuxt-domain>
 
@@ -43,6 +46,17 @@ STORAGE_S3_BUCKET=aam-pe-directus
 STORAGE_S3_REGION=eu-north-1
 STORAGE_S3_ENDPOINT=s3.eu-north-1.amazonaws.com
 ```
+
+**`HOST=::` is not optional.** Railway's private network is IPv6-only. Directus
+defaults to `0.0.0.0`, which answers on IPv4 alone, so `PUBLIC_URL` and the
+public domain work fine while Nuxt's private-network call to
+`directus.railway.internal:8055` fails — a service that looks healthy from a
+browser and is unreachable from the service next to it.
+
+**`ADMIN_TOKEN` saves the manual step in §3.** Directus mints that exact static
+token on the admin user at first boot, so the service token exists before
+anything needs it and does not have to be clicked out of the admin UI. It is
+the same credential §3 and §4 use; treat it as the secret it is.
 
 **`s3`, not `s3,local`.** The container disk is ephemeral, so a `local` location
 loses every upload on the next deploy. That is safe on a fresh database. If you
@@ -61,8 +75,9 @@ NUXT_DIRECTUS_SERVICE_TOKEN=<service token from the Directus admin> \
 pnpm directus:apply && pnpm seed:pages && pnpm directus:seed-settings
 ```
 
-Create the service token in Directus: *Settings → Access Tokens*, on a user with
-admin policy. It is the credential Nuxt uses for everything server-side, and it
+The token is the `ADMIN_TOKEN` from §2 — already minted at first boot. (Creating
+one by hand in *Settings → Access Tokens* on a user with the admin policy works
+too, and is what you do if you ever rotate it.) It is the credential Nuxt uses for everything server-side, and it
 must never reach the browser — `pnpm check:bundle` greps the client build for it.
 
 ## 4. Nuxt
@@ -71,7 +86,13 @@ must never reach the browser — `pnpm check:bundle` greps the client build for 
 
 - Build: `pnpm build` — already chains `archive:sources` and `archive:pool`
 - Start: `node .output/server/index.mjs`
-- Port: Nitro reads `PORT`; Railway sets it. Do not hard-code one.
+- Port: **set `PORT=3000` explicitly.** The generated domain is created pointing
+  at target port 3000, but the container came up on 8080 — Nitro's own default
+  is 3000, so something in the Railway environment supplies 8080 — and the
+  domain then answers **502 Application failed to respond** with a perfectly
+  healthy app behind it. The deploy log line `Listening on http://[::]:3000` has
+  to match the domain's target port; if you would rather move the domain than
+  pin the app, that is the same fix from the other end.
 
 ```
 NUXT_DIRECTUS_URL=http://${{Directus.RAILWAY_PRIVATE_DOMAIN}}:8055
@@ -118,10 +139,50 @@ Per `DEPLOYMENT.md` §5, and in this order:
   both are 200. A 404 on the home page after a deploy means a missing variable,
   not a broken route.
 
-- **Railway has no spending cap.** A leak bills until someone notices. Set a
-  usage alert on day one. `DEPLOYMENT.md` §3 prefers Render for exactly this
-  reason; Railway was chosen with the trade understood.
+- **Railway has no spending cap by default.** A leak bills until someone
+  notices. `DEPLOYMENT.md` §3 prefers Render for exactly this reason; Railway
+  was chosen with the trade understood. This workspace now carries a usage
+  limit: **soft $35** (warning email) and **hard $46** — €40 at 1.16, the euro
+  figure being the number that was actually meant. Whole dollars is all the
+  limit accepts. Note what a *hard* limit does: workloads are shut down, so
+  reaching it takes the site offline rather than running up a bill. That is the
+  trade being made on purpose.
 - The repo carries an 18MB `public/data/edits.json`. Fine, but it makes builds
   and clones larger than they look.
 - Directus schema changes are applied from a laptop, not by the app at boot.
   That is deliberate — see `DEPLOYMENT.md` §6.
+
+---
+
+## Deployed 2026-08-31
+
+| | |
+|---|---|
+| Project | `pe-platform` — Railway project `df93e800-51c1-4b2b-9e6f-2c69c6f7d59d`, region EU West (Amsterdam) |
+| Site | https://nuxt-production-67f8.up.railway.app |
+| Directus | https://directus-production-7f98.up.railway.app |
+
+Credentials for the deployed environment are in `.env.railway` — gitignored by
+the `.env.*` rule, and the file the schema/seed commands are sourced from:
+
+```bash
+set -a; source .env.railway; set +a
+pnpm directus:apply && pnpm seed:pages && pnpm directus:seed-settings
+```
+
+Verified on the day: `/api/status` reports `connected: true` over the private
+network; 15 collections applied including `auth_sessions` and
+`auth_login_tokens`; 6 pages seeded; `/archive` 200 with no `amazonaws.com`
+string anywhere in the HTML or the client chunks, and clips and thumbnails
+answering `206` from `media.purgatoryedit.com`; the service token absent from
+every client chunk; a Directus upload landing with `storage: "s3"` and
+streaming back through `/assets/<id>`.
+
+**Not verified, because it cannot be yet:** sign-in. SES is still sandboxed with
+DKIM failed — `SES.md` — so no `NUXT_SMTP_*` variables are set and a sign-in
+request cannot send. §5 steps 3 and 4 stay open until that is done. The session
+store itself is in the database rather than on disk, which is the part step 4
+was really guarding.
+
+A file called `_deploy-storage-check.png` sits in Directus files from the S3
+check above. Nothing references it; delete it whenever.
