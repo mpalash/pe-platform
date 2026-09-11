@@ -43,9 +43,11 @@ const links = computed(() => {
   }
 
   return [
-    // The archive is not a Directus page — it is an application route with its
-    // own data source — so it is named here rather than coming from the tree.
+    // The archive and the experience logs are not Directus pages — they are
+    // application routes with their own data — so they are named here rather
+    // than coming from the tree.
     { to: '/archive', label: 'Archive', external: false },
+    { to: '/experience-logs', label: 'Experience Logs', external: false },
     ...(pages.value ?? [])
       .filter(page => !page.parent && page.path !== '/')
       .map(page => ({ to: page.path, label: page.title, external: false })),

@@ -40,8 +40,26 @@ const FALLBACK: ArchiveAdvisory = {
   decline_path: '/',
 }
 
-export default defineEventHandler(async (): Promise<ArchiveAdvisory> => {
-  const record = (await readDirectusSingleton('archive_advisory')) ?? {}
+/**
+ * Which singleton holds each collection's warning. An allowlist, and the only
+ * thing the query parameter can select: this route reads with the service
+ * token, so a caller must never be able to name a Directus collection of its
+ * own choosing.
+ *
+ * The experience logs fall back to the archive's copy — the same material,
+ * and a missing record must never mean a missing warning.
+ */
+const SINGLETONS: Record<string, string> = {
+  archive: 'archive_advisory',
+  sessions: 'experience_logs_advisory',
+}
+
+export default defineEventHandler(async (event): Promise<ArchiveAdvisory> => {
+  const collection = String(getQuery(event)['collection'] ?? 'archive')
+  const singleton = SINGLETONS[collection]
+  if (!singleton) throw createError({ statusCode: 400, statusMessage: 'Unknown collection' })
+
+  const record = (await readDirectusSingleton(singleton)) ?? {}
 
   return {
     title: str(record['title']) ?? FALLBACK.title,

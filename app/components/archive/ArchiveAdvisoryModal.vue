@@ -26,8 +26,11 @@ import type { ArchiveAdvisory } from '~~/server/api/content/archive-advisory.get
 
 const advisory = useArchiveAdvisory()
 
+// Each collection has its own warning, worded for what it covers.
+const spec = useArchiveCollection()
 const { data: content } = await useFetch<ArchiveAdvisory>('/api/content/archive-advisory', {
-  key: 'archive-advisory',
+  query: { collection: spec.id },
+  key: `advisory:${spec.id}`,
 })
 
 /*

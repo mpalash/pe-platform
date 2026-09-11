@@ -10,7 +10,13 @@
  * warning costs a click, which is the cheap side of that trade.
  */
 export function useArchiveAdvisory() {
-  const accepted = useState('archive:advisoryAccepted', () => false)
+  /*
+   * Per collection. The archive and the experience logs have their own
+   * warnings, worded for what each covers, and accepting one is not having
+   * read the other. The archive keeps the key it always had.
+   */
+  const spec = useArchiveCollection()
+  const accepted = useState(`${spec.id}:advisoryAccepted`, () => false)
 
   return {
     accepted,

@@ -110,3 +110,35 @@ describe('the advisory always says something', () => {
     }
   })
 })
+
+describe('each collection has its own warning', () => {
+  const route = code(read('server/api/content/archive-advisory.get.ts'))
+
+  it('selects the singleton from an allowlist, never from the request', () => {
+    // The route reads with the service token; a caller naming an arbitrary
+    // Directus collection would be reading whatever it liked.
+    expect(route).toMatch(/archive: 'archive_advisory'/)
+    expect(route).toMatch(/sessions: 'experience_logs_advisory'/)
+    expect(route).toMatch(/if \(!singleton\) throw createError\(\{ statusCode: 400/)
+    expect(route).not.toMatch(/readDirectusSingleton\(collection\)/)
+  })
+
+  it('asks for the warning of the collection the page shows', () => {
+    expect(code(modal)).toMatch(/query: \{ collection: spec\.id \}/)
+  })
+
+  it('records acceptance per collection, so one warning does not dismiss the other', () => {
+    expect(code(read('app/composables/useArchiveAdvisory.ts'))).toMatch(/`\$\{spec\.id\}:advisoryAccepted`/)
+  })
+})
+
+describe('navigation', () => {
+  it('names every application route in the seed and in the header fallback', () => {
+    const seed = read('scripts/seed-settings.ts')
+    const header = read('app/components/SiteHeader.vue')
+    for (const path of ['/archive', '/experience-logs']) {
+      expect(seed, `seed-settings lacks ${path}`).toContain(`path: '${path}'`)
+      expect(header, `SiteHeader fallback lacks ${path}`).toContain(`to: '${path}'`)
+    }
+  })
+})

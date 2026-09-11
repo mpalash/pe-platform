@@ -75,12 +75,13 @@ const SITE_SETTINGS: Record<string, unknown> = {
  * pages are /research and /faqs — and a nav link to a 404 is the kind of thing
  * that survives a long time because the label looks right.
  *
- * /archive and /source-index are application routes rather than Directus
- * pages, so they will never appear in the page tree the fallback walks; they
- * have to be named here.
+ * /archive, /experience-logs and /source-index are application routes rather
+ * than Directus pages, so they will never appear in the page tree the fallback
+ * walks; they have to be named here.
  */
 const NAV_LINKS = [
   { label: 'Archive', path: '/archive', external: false },
+  { label: 'Experience Logs', path: '/experience-logs', external: false },
   { label: 'Source Index', path: '/source-index', external: false },
   { label: 'About', path: '/about', external: false },
   { label: 'Research logs', path: '/research', external: false },
@@ -162,14 +163,66 @@ async function main(): Promise<void> {
     console.log('  = archive_advisory: nothing empty to fill')
   }
 
-  const nav = await api<Record<string, unknown>>('/items/navigation')
+  /*
+   * The experience logs' warning starts as a copy of the archive's — the LIVE
+   * record, as an editor has left it, not the defaults above — field by field,
+   * and only where the new one is still empty. Rewording it later is never
+   * undone by a re-run.
+   */
+  const archiveNow = await api<Record<string, unknown>>('/items/archive_advisory')
+  const logsNow = await api<Record<string, unknown>>('/items/experience_logs_advisory')
+  const logsPayload: Record<string, unknown> = {}
 
-  if (force || isEmpty(nav?.['links'])) {
+  for (const field of Object.keys(ARCHIVE_ADVISORY)) {
+    if ((force || isEmpty(logsNow?.[field])) && !isEmpty(archiveNow?.[field])) {
+      logsPayload[field] = archiveNow![field]
+    }
+  }
+
+  if (Object.keys(logsPayload).length > 0) {
+    await api('/items/experience_logs_advisory', { method: 'PATCH', body: JSON.stringify(logsPayload) })
+    console.log(`  + experience_logs_advisory (copied from the archive's): ${Object.keys(logsPayload).join(', ')}`)
+  }
+  else {
+    console.log('  = experience_logs_advisory: nothing empty to fill')
+  }
+
+  const nav = await api<Record<string, unknown>>('/items/navigation')
+  const authored = Array.isArray(nav?.['links']) ? nav['links'] as Array<{ path?: string }> : []
+
+  if (force || authored.length === 0) {
     await api('/items/navigation', { method: 'PATCH', body: JSON.stringify({ links: NAV_LINKS }) })
     console.log(`  + navigation: ${NAV_LINKS.length} link(s)`)
   }
   else {
-    console.log('  = navigation: already authored, left alone')
+    /*
+     * An authored menu is left as it is — except that an APPLICATION route
+     * missing from it is added. A new route in the code is not an editorial
+     * choice, and without this a site whose menu was set up before the route
+     * existed would never link to it. Inserted after the app route that
+     * precedes it in NAV_LINKS, so it lands beside its neighbour rather than
+     * at the bottom; nothing already there is moved or removed.
+     */
+    const APP_ROUTES = ['/archive', '/experience-logs', '/source-index']
+    const links = [...authored]
+    const added: string[] = []
+
+    for (const route of APP_ROUTES) {
+      if (links.some(link => link.path === route)) continue
+      const entry = NAV_LINKS.find(link => link.path === route)!
+      const before = NAV_LINKS.slice(0, NAV_LINKS.indexOf(entry)).map(link => link.path).reverse()
+      const anchor = before.map(path => links.findIndex(link => link.path === path)).find(i => i >= 0)
+      links.splice(anchor === undefined ? links.length : anchor + 1, 0, entry)
+      added.push(route)
+    }
+
+    if (added.length > 0) {
+      await api('/items/navigation', { method: 'PATCH', body: JSON.stringify({ links }) })
+      console.log(`  + navigation: added ${added.join(', ')} to the authored menu`)
+    }
+    else {
+      console.log('  = navigation: already authored, left alone')
+    }
   }
 
   console.log('\n✓ Settings seeded.')

@@ -750,20 +750,35 @@ async function main(): Promise<void> {
     },
   ])
 
-  await ensureCollection('archive_advisory', {
-    icon: 'warning',
-    singleton: true,
-    note: 'The content warning shown over the archive before anyone can use it. Editable here because it is an ethical statement, not layout — it should not need a deploy to change.',
-  }, [
+  /*
+   * Two content warnings with the same shape: one over the archive, one over
+   * the experience logs. Separate singletons rather than one shared record,
+   * because they describe different things — 30,000 clips, and recordings of
+   * people watching them — and an editor should be able to word each for
+   * what it covers. The field list is shared so the two cannot drift apart.
+   */
+  const advisoryFields = () => [
     text('title', { required: true, note: 'Heading of the modal, e.g. Before you enter.' }),
-    text('lede', { note: 'One line under the heading. Scale of the archive, usually.' }),
+    text('lede', { note: 'One line under the heading. Scale of the collection, usually.' }),
     richtext('body', 'The warning itself. This is the part someone has to be able to read before deciding.'),
     longText('detail', 'Optional full list of depicted content, shown inside a disclosure so it does not wall off the modal.'),
     text('detail_label', { note: 'Label for the disclosure, e.g. "The full list of depicted content".' }),
     text('accept_label', { note: 'The button that dismisses the warning. Defaults to "Enter the archive".' }),
     text('decline_label', { note: 'The way out. Defaults to "Not now".' }),
     text('decline_path', { note: 'Where the way out goes. Defaults to /.' }),
-  ])
+  ]
+
+  await ensureCollection('archive_advisory', {
+    icon: 'warning',
+    singleton: true,
+    note: 'The content warning shown over the archive before anyone can use it. Editable here because it is an ethical statement, not layout — it should not need a deploy to change.',
+  }, advisoryFields())
+
+  await ensureCollection('experience_logs_advisory', {
+    icon: 'warning',
+    singleton: true,
+    note: 'The content warning shown over the experience logs — recordings of participants\' sessions, which show the archive\'s material. Seeded as a copy of the archive\'s warning; reword it for what the recordings are.',
+  }, advisoryFields())
 
   await ensureCollection('announcement', {
     icon: 'campaign',
