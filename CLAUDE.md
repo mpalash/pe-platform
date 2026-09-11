@@ -286,7 +286,10 @@ have to be named in `scripts/seed-settings.ts`.
   `server/api/experience-logs/[slug]/cues.get.ts` into `[{ at, title }]`,
   because that CSV's first column is the participant's name on every row.
   Under the video, `ArchiveSessionGraph` plots `met.csv`'s six readings
-  (AT IN EN EX RE ST), served by `…/[slug]/metrics.get.ts`; both routes read
+  (AT IN EN EX RE ST) and is also the session's SEEK BAR — a `role="slider"`
+  on the graph's own time axis, replacing the range input in the control
+  bar, because a native range insets its ends by half a thumb and could never
+  line up with the lines. Served by `…/[slug]/metrics.get.ts`; both routes read
   through `readSessionCsv` in `server/utils/session-index.ts`, which refuses
   slugs the index does not list. **An exact 0 in met.csv is "no signal", not
   a reading** — 536 rows are zero in all six columns at once — so it is

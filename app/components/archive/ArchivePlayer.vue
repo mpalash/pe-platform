@@ -139,6 +139,15 @@ function seek(event: Event): void {
   el.currentTime = (Number(input.value) / 100) * el.duration
 }
 
+/** From a session's timeline, which seeks in seconds rather than percent. */
+function seekTo(seconds: number): void {
+  const el = videoEl.value
+  if (!el) return
+  el.currentTime = seconds
+  // Moved while paused, no timeupdate follows; the playhead should not wait.
+  currentTime.value = seconds
+}
+
 watch(active.currentId, (id) => {
   if (id === props.item.id) void play()
   else pause()
@@ -184,10 +193,14 @@ onBeforeUnmount(() => {
       <ArchiveSessionCue :title="onScreen" />
     </Frame>
 
+    <!-- A session's progress bar is here, on the graph's time axis; the
+         control bar below keeps everything else. -->
     <ArchiveSessionGraph
       v-if="item.kind === 'session' && src"
       :metrics="metrics"
       :time="currentTime"
+      :duration="duration"
+      @seek="seekTo"
     />
 
     <div
@@ -203,20 +216,22 @@ onBeforeUnmount(() => {
         <span aria-hidden="true">{{ isPlaying ? '❚❚' : '▶' }}</span>
       </button>
 
-      <label
-        class="visually-hidden"
-        :for="`seek-${item.id}`"
-      >Seek within {{ item.name }}</label>
-      <input
-        :id="`seek-${item.id}`"
-        class="clip__seek"
-        type="range"
-        min="0"
-        max="100"
-        step="0.1"
-        :value="progress"
-        @input="seek"
-      >
+      <template v-if="item.kind !== 'session'">
+        <label
+          class="visually-hidden"
+          :for="`seek-${item.id}`"
+        >Seek within {{ item.name }}</label>
+        <input
+          :id="`seek-${item.id}`"
+          class="clip__seek"
+          type="range"
+          min="0"
+          max="100"
+          step="0.1"
+          :value="progress"
+          @input="seek"
+        >
+      </template>
 
       <span class="clip__time">−{{ formatTime(remaining) }}</span>
 
@@ -356,6 +371,9 @@ onBeforeUnmount(() => {
 }
 
 .clip__time {
+  /* Right-aligned whether or not a seek bar sits before it: for a session
+     the bar lives in the graph above, and this takes the space it left. */
+  margin-inline-start: auto;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);

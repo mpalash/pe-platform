@@ -110,6 +110,15 @@ function seek(event: Event): void {
   el.currentTime = (Number(input.value) / 100) * el.duration
 }
 
+/** From a session's timeline, which seeks in seconds rather than percent. */
+function seekTo(seconds: number): void {
+  const el = videoEl.value
+  if (!el) return
+  el.currentTime = seconds
+  // Moved while paused, no timeupdate follows; the playhead should not wait.
+  currentTime.value = seconds
+}
+
 function onEnded(): void {
   isPlaying.value = false
   if (autoNext.value && props.hasNext) emit('next')
@@ -334,10 +343,14 @@ watch(src, start, { flush: 'post' })
           </button>
         </div>
 
+        <!-- A session's progress bar is here, on the graph's time axis; the
+             control bar below keeps everything else. -->
         <ArchiveSessionGraph
           v-if="isSession && src"
           :metrics="metrics"
           :time="currentTime"
+          :duration="duration"
+          @seek="seekTo"
         />
 
         <div
@@ -353,20 +366,22 @@ watch(src, start, { flush: 'post' })
             <span aria-hidden="true">{{ isPlaying ? '❚❚' : '▶' }}</span>
           </button>
 
-          <label
-            class="visually-hidden"
-            :for="`modal-seek-${item.id}`"
-          >Seek</label>
-          <input
-            :id="`modal-seek-${item.id}`"
-            class="modal__seek"
-            type="range"
-            min="0"
-            max="100"
-            step="0.1"
-            :value="progress"
-            @input="seek"
-          >
+          <template v-if="!isSession">
+            <label
+              class="visually-hidden"
+              :for="`modal-seek-${item.id}`"
+            >Seek</label>
+            <input
+              :id="`modal-seek-${item.id}`"
+              class="modal__seek"
+              type="range"
+              min="0"
+              max="100"
+              step="0.1"
+              :value="progress"
+              @input="seek"
+            >
+          </template>
 
           <span class="modal__time">
             {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
@@ -536,9 +551,9 @@ watch(src, start, { flush: 'post' })
 }
 
 /* A session's headset graph sits under the video too, so the stage gives up
-   its height — ArchiveSessionGraph's fixed `--graph-block`, 7rem. */
+   its height — ArchiveSessionGraph's fixed `--graph-block`, 7.5rem. */
 .modal__panel--graph {
-  --modal-chrome: 10rem;
+  --modal-chrome: 10.5rem;
 }
 
 /*
@@ -641,6 +656,9 @@ watch(src, start, { flush: 'post' })
 }
 
 .modal__time {
+  /* Right-aligned whether or not a seek bar sits before it: for a session
+     the bar lives in the graph above, and this takes the space it left. */
+  margin-inline-start: auto;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);

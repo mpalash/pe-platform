@@ -310,6 +310,40 @@ describe('the headset graph: readings from met.csv', () => {
     expect(graph).toBeLessThan(source.search(/class="(clip|modal)__controls"/))
   })
 
+  it.each([
+    ['ArchivePlayer.vue', 'item.kind !== \'session\''],
+    ['ArchiveModalPlayer.vue', '!isSession'],
+  ])('%s moves a session\'s seek bar into the graph, keeping the control bar', (player, notSession) => {
+    const source = read(`app/components/archive/${player}`)
+    // The range input is for clips only; a session seeks on its timeline.
+    expect(source).toMatch(new RegExp(`<template v-if="${notSession.replace(/[.!]/g, '\\$&')}">\\s*<label[\\s\\S]*?type="range"[\\s\\S]*?</template>`))
+    expect(source).toMatch(/:duration="duration"\s+@seek="seekTo"/)
+    // Play, time, mute… still sit in the control bar under the graph.
+    const controls = source.slice(source.search(/class="(clip|modal)__controls"/))
+    expect(controls).toMatch(/__time/)
+    expect(controls).toMatch(/togglePlay/)
+  })
+
+  it('makes the timeline a keyboard-operable slider that does not leak arrow keys', () => {
+    const graph = read('app/components/archive/ArchiveSessionGraph.vue')
+    expect(graph).toMatch(/role="slider"/)
+    expect(graph).toMatch(/tabindex="0"/)
+    expect(graph).toMatch(/:aria-valuetext="valueText"/)
+    for (const key of ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End']) {
+      expect(graph).toMatch(new RegExp(`${key}:`))
+    }
+    // The modal takes ArrowLeft/Right on the document as previous/next clip.
+    expect(graph.slice(graph.indexOf('function onKeydown'))).toMatch(/event\.stopPropagation\(\)/)
+    expect(graph).toMatch(/\.graph__timeline:focus-visible \{/)
+  })
+
+  it('stacks the legend in a column at the start of the lines', () => {
+    const graph = read('app/components/archive/ArchiveSessionGraph.vue')
+    expect(graph).toMatch(/grid-template-columns: auto 1fr;/)
+    expect(graph).toMatch(/\.graph__legend \{[^}]*flex-direction: column;/)
+    expect(graph.indexOf('<figcaption class="graph__legend">')).toBeLessThan(graph.indexOf('class="graph__timeline"'))
+  })
+
   it('draws with the series tokens, not colours of its own (hard rule 19\'s spirit)', () => {
     const graph = read('app/components/archive/ArchiveSessionGraph.vue')
     expect(graph).toMatch(/var\(--series-\$\{index \+ 1\}\)/)
