@@ -19,10 +19,11 @@ export function useAmbientVideo() {
   const perPage = useState<Record<string, boolean>>('ambient:perPage', () => ({}))
 
   /**
-   * Never on the archive. It has its own players, its own advisory gate, and a
-   * second video playing over the galaxy would compete with all of them.
+   * Never on a page that renders the archive browser — the archive or the
+   * experience logs. Both have their own players and their own advisory gate,
+   * and a second video playing over them would compete with all of it.
    */
-  const allowedHere = computed(() => !route.path.startsWith('/archive'))
+  const allowedHere = computed(() => !isCollectionPath(route.path))
 
   /*
    * No per-visitor dismissal. Whether the player appears is decided by an

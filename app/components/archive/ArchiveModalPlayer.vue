@@ -36,12 +36,15 @@ const { track } = useAnalytics()
  * the <video> kept playing the first one. It looked like the metadata was
  * broken; it was the video that never moved.
  */
-const source = computed(() => usePlaybackSource(props.item.filename))
+const source = computed(() => usePlaybackSource(props.item.filename, props.item.kind))
 const src = computed(() => source.value.src)
 const poster = computed(() => source.value.poster)
 
 const dialog = useTemplateRef<HTMLElement>('dialog')
 const videoEl = useTemplateRef<HTMLVideoElement>('videoEl')
+
+/** Keeps the <video> on the current item's source, clip or stream alike. */
+const playback = useVideoSource(videoEl, src)
 
 const isPlaying = ref(false)
 const muted = ref(false)
@@ -199,26 +202,26 @@ onBeforeUnmount(() => {
 })
 
 // Moving to another clip should start it, not leave a paused frame.
-watch(() => props.item.id, () => {
+/*
+ * Opening the modal, or stepping to another item, connects its source and
+ * starts it rather than leaving a paused frame.
+ *
+ * On the source, not the item id: that is what actually has to change on the
+ * element, and `immediate` covers the first item as well as every later one.
+ * `flush: 'post'` so the <video> exists when this runs. Re-fetching the new
+ * source (the `load()` that stepping used to need here) is useVideoSource's
+ * job now, alongside knowing whether it is a clip or a stream.
+ */
+watch(src, async () => {
   progress.value = 0
   currentTime.value = 0
   duration.value = 0
 
-  nextTick(() => {
-    const el = videoEl.value
-    if (!el) return
-
-    /*
-     * `load()` is required. Changing the `src` attribute on an element that is
-     * already playing does not reliably re-fetch — the browser keeps decoding
-     * the old stream until told to start over.
-     */
-    el.load()
-    el.play().catch(() => {
-      isPlaying.value = false
-    })
+  await playback.ensure()
+  videoEl.value?.play().catch(() => {
+    isPlaying.value = false
   })
-})
+}, { immediate: true, flush: 'post' })
 </script>
 
 <template>
@@ -241,7 +244,6 @@ watch(() => props.item.id, () => {
           <video
             v-if="src"
             ref="videoEl"
-            :src="src"
             :poster="poster ?? undefined"
             autoplay
             playsinline

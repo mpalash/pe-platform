@@ -162,12 +162,24 @@ describe('the playback seam', () => {
   it('is the only place a container format appears', () => {
     // Hard rule 5. A `.mp4` literal anywhere else is a bug.
     const offenders: string[] = []
+    // Everything that plays, lists or shapes media — including the modal and
+    // the grid, which this list used to miss, and everything the experience
+    // logs added. Sessions are HLS, so `.m3u8` is exactly as forbidden here as
+    // `.mp4`: it belongs in usePlaybackSource and nowhere else.
     const searched = [
       'app/components/archive/ArchivePlayer.vue',
       'app/components/archive/ArchiveFeed.vue',
+      'app/components/archive/ArchiveGrid.vue',
+      'app/components/archive/ArchiveModalPlayer.vue',
       'app/components/archive/ArchiveToolbar.vue',
+      'app/components/archive/ArchiveBrowser.vue',
       'app/pages/archive.vue',
+      'app/pages/experience-logs.vue',
       'app/composables/useArchive.ts',
+      'app/composables/useArchiveCollection.ts',
+      'shared/utils/collections.ts',
+      'shared/utils/sessions.ts',
+      'server/api/experience-logs.get.ts',
     ]
 
     for (const file of searched) {

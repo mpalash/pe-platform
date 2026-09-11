@@ -56,7 +56,7 @@ app/
   assets/styles/       # design tokens, resets, primitives — hand-written
   components/
     blocks/            # one per content block type, name-matched to Directus collections
-    archive/           # ported player + browser
+    archive/           # ported player + browser; ArchiveBrowser is the whole page
     ui/                # design-system primitives
   composables/           # useDraggable owns the floating-panel chrome
   layouts/
@@ -91,9 +91,11 @@ docs/plan/
 4. **The archive is public.** No signed URLs, no signed cookies, no gating on media. If you
    find yourself adding auth to a video request, stop — that is not this platform.
 
-5. **Never reference a container format outside `usePlaybackSource`.** Media is MP4 today and
-   HLS later; the composable is the seam that makes that a one-place change. A `.mp4` literal
-   in a component is a bug.
+5. **Never reference a container format outside `usePlaybackSource`.** Archive clips are MP4;
+   experience-log sessions are HLS — decided per item by `ArchiveItem.kind` (ADR-004). A `.mp4`
+   or `.m3u8` literal in a component is a bug, and so is `<video :src>`: HLS plays that way
+   only in Safari. Players hand their element to `useVideoSource`, which loads hls.js on demand
+   where there is no native HLS.
 
 6. **Session identity is read server-side, from the session cookie. Never from a request
    body.** A `user_id` in a payload is ignored.
@@ -140,8 +142,8 @@ docs/plan/
     `useActivePlayer.claim()` refusing until it is accepted. Copy lives in the
     `archive_advisory` singleton. `test/advisory.spec.ts` guards all of it.
 
-16. **The ambient player never appears on `/archive`,** which has its own
-    players and its own advisory gate. Per-page control is the Directus field
+16. **The ambient player never appears on `/archive` or `/experience-logs`,** which
+    have their own players and their own advisory gate. Per-page control is the Directus field
     `pages.show_ambient_video`, defaulting to true; it reaches the layout
     through `useAmbientVideo`, keyed by path so one page's setting cannot leak
     to a route that has no opinion.
@@ -178,6 +180,16 @@ docs/plan/
     instrumented**: the feed autoplays, so dwell time on `/archive`
     (`useArchiveDwell`) is the proxy, counted only while visible and only after
     the advisory is accepted. `test/analytics.spec.ts` guards all of it.
+
+21. **`/archive` and `/experience-logs` are one browser.** Both pages render
+    `<ArchiveBrowser />` and nothing else, and name their collection with
+    `provideArchiveCollection()`. Every difference between them — views offered
+    (no galaxy for sessions), bins, what is counted, search fields, default
+    order — is data in `shared/utils/collections.ts`. **A `route.path === …`
+    branch in an archive component is a bug**: it is how two pages meant to
+    behave identically drift apart. The store is namespaced by collection, and
+    the archive's namespace stays `archive`, or saved clips are lost.
+    `test/sessions.spec.ts` and `test/advisory.spec.ts` guard this.
 
 ## Deployment
 
@@ -244,6 +256,17 @@ have to be named in `scripts/seed-settings.ts`.
   bypasses the CDN still bills egress at $0.09/GB. Locking it down needs Origin
   Access Control and a bucket policy — deliberately not done yet.
 
+- **`x_logs/` in the archive bucket holds the participant session recordings**
+  as 720p HLS — one folder per session with `index.m3u8`, `poster.jpg`,
+  `met.csv` (headset metrics) and `filenames.csv` (clips shown), listed in
+  `x_logs/index.json`. Derived from `Experience Log/` by `scripts/xlog/`; its
+  README has the encode choices and how the CSVs were paired. `/experience-logs`
+  plays it, via `server/api/experience-logs.get.ts`, which drops participant
+  names on the SERVER so they never reach a browser — sessions are labelled by
+  date and time. Two limits on that: **the folder slugs still contain the
+  names**, and they are in every media URL; and the whole prefix, CSVs
+  included, is as publicly readable as the rest of the bucket.
+
 - **The ambient pool is Peace-only** (`ALLOWED_BINS` in
   `scripts/build-ambient-pool.ts`). The player has no advisory in front of it,
   so it must not draw from the war end — that is the whole reason the archive
@@ -277,6 +300,16 @@ have to be named in `scripts/seed-settings.ts`.
   dwell timer refusing to start is the correct behaviour, not a bug — override
   `document.hidden` before concluding otherwise. Same family as the frozen-rAF
   trap that made the galaxy's thumbnails look like a loading problem.
+
+- **In an unfocused automation window, in-app navigation looks broken and
+  nothing plays — neither is real.** Pages swap through
+  `<Transition mode="out-in">`, which runs on animation frames; those are
+  frozen in a hidden window, so the OLD page never finishes leaving and stays
+  on screen under the new page's title. That once read as "the experience
+  logs show the archive". And Chrome defers media loading in hidden windows
+  entirely — even a bare hand-made `<video>` sits at `readyState` 0. Verify
+  navigation with a fresh load, and playback in a foregrounded window.
+  `document.visibilityState` tells you which situation you are in.
 
 - **New exports under `shared/` need a dev-server restart.** Auto-import does
   not rescan on HMR, so a freshly added export is `undefined` at runtime while

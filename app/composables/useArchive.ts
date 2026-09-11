@@ -1,6 +1,7 @@
 import MiniSearch from 'minisearch'
 import type { ShallowRef } from 'vue'
 import type { ArchiveItem, ArchiveSource, RawEdit } from '~~/shared/utils/archive'
+import type { CollectionId, CollectionSpec } from '~~/shared/utils/collections'
 
 /**
  * Archive state: loading, searching, filtering, ordering.
@@ -14,21 +15,54 @@ import type { ArchiveItem, ArchiveSource, RawEdit } from '~~/shared/utils/archiv
  * The archive is PUBLIC (hard rule 4). Nothing here gates on a session.
  */
 
-/** Fields MiniSearch indexes, and the boosts. Ported unchanged. */
-const SEARCH_FIELDS = ['name', 'description', 'srcAuthor', 'srcLocation', 'topics', 'keywords']
+/**
+ * How each collection's items arrive. The only per-collection behaviour that is
+ * code rather than data, so it lives here beside the store rather than in
+ * shared/utils/collections.ts.
+ */
+const LOADERS: Record<CollectionId, () => Promise<{ items: ArchiveItem[], sources: ArchiveSource[] }>> = {
+  async archive() {
+    // Served as a static file rather than bundled — 18MB of JSON has no
+    // business in a JS bundle, and this way it is cached and compressed.
+    const records = await $fetch<RawEdit[]>('/data/edits.json')
 
-export function useArchive() {
-  const items = useState<Map<string, ArchiveItem>>('archive:items', () => new Map())
-  const allIds = useState<string[]>('archive:allIds', () => [])
-  const sources = useState<ArchiveSource[]>('archive:sources', () => [])
-  const loading = useState<boolean>('archive:loading', () => false)
-  const error = useState<string | null>('archive:error', () => null)
+    // assignStableIds is load-bearing: the export contains empty and
+    // duplicated uids, and MiniSearch throws on a duplicate id — which took
+    // down the entire feed rather than the affected records.
+    return { items: assignStableIds(records.map(shapeEdit)), sources: collectSources(records) }
+  },
 
-  const searchTerm = useState<string>('archive:searchTerm', () => '')
-  const binRange = useState<[number, number] | null>('archive:binRange', () => null)
-  const shuffled = useState<boolean>('archive:shuffled', () => true)
-  const bookmarksOnly = useState<boolean>('archive:bookmarksOnly', () => false)
-  const bookmarks = useState<string[]>('archive:bookmarks', () => [])
+  async sessions() {
+    // Shaped server-side, so participants' names never reach the browser —
+    // see server/api/experience-logs.get.ts.
+    return { items: await $fetch<ArchiveItem[]>('/api/experience-logs'), sources: [] }
+  },
+}
+
+/**
+ * The store for the collection the current page browses.
+ *
+ * Every key is namespaced by collection, so the archive and the experience
+ * logs keep separate filters, saved items and search index — searching one
+ * does not filter the other. The archive's namespace is `archive`, as every
+ * key was before there was a second collection.
+ *
+ * Pass `spec` only from outside a page (tests, scripts); components get the
+ * collection their page declared — see useArchiveCollection.
+ */
+export function useArchive(spec: CollectionSpec = useArchiveCollection()) {
+  const ns = spec.id
+  const items = useState<Map<string, ArchiveItem>>(`${ns}:items`, () => new Map())
+  const allIds = useState<string[]>(`${ns}:allIds`, () => [])
+  const sources = useState<ArchiveSource[]>(`${ns}:sources`, () => [])
+  const loading = useState<boolean>(`${ns}:loading`, () => false)
+  const error = useState<string | null>(`${ns}:error`, () => null)
+
+  const searchTerm = useState<string>(`${ns}:searchTerm`, () => '')
+  const binRange = useState<[number, number] | null>(`${ns}:binRange`, () => null)
+  const shuffled = useState<boolean>(`${ns}:shuffled`, () => spec.defaultShuffled)
+  const bookmarksOnly = useState<boolean>(`${ns}:bookmarksOnly`, () => false)
+  const bookmarks = useState<string[]>(`${ns}:bookmarks`, () => [])
 
   /**
    * The MiniSearch index is deliberately NOT in useState — it is a large object
@@ -44,13 +78,14 @@ export function useArchive() {
    * module-level variable would.
    */
   const nuxt = useNuxtApp() as unknown as {
-    _archiveIndex?: ShallowRef<MiniSearch<ArchiveItem> | null>
+    _archiveIndexes?: Partial<Record<CollectionId, ShallowRef<MiniSearch<ArchiveItem> | null>>>
   }
-  nuxt._archiveIndex ??= shallowRef<MiniSearch<ArchiveItem> | null>(null)
-  const index = nuxt._archiveIndex
+  nuxt._archiveIndexes ??= {}
+  nuxt._archiveIndexes[ns] ??= shallowRef<MiniSearch<ArchiveItem> | null>(null)
+  const index = nuxt._archiveIndexes[ns]!
 
   /** Shuffle order is held separately so re-filtering does not reshuffle. */
-  const shuffleSeed = useState<number>('archive:shuffleSeed', () => 0)
+  const shuffleSeed = useState<number>(`${ns}:shuffleSeed`, () => 0)
 
   async function load(): Promise<void> {
     if (items.value.size > 0 || loading.value) return
@@ -59,24 +94,17 @@ export function useArchive() {
     error.value = null
 
     try {
-      // Served as a static file rather than bundled — 18MB of JSON has no
-      // business in a JS bundle, and this way it is cached and compressed.
-      const records = await $fetch<RawEdit[]>('/data/edits.json')
+      const loaded = await LOADERS[ns]()
 
-      // assignStableIds is load-bearing: the export contains empty and
-      // duplicated uids, and MiniSearch throws on a duplicate id — which took
-      // down the entire feed rather than the affected records.
-      const shaped = assignStableIds(records.map(shapeEdit))
+      items.value = new Map(loaded.items.map(item => [item.id, item]))
+      allIds.value = loaded.items.map(item => item.id)
+      sources.value = loaded.sources
 
-      items.value = new Map(shaped.map(item => [item.id, item]))
-      allIds.value = shaped.map(item => item.id)
-      sources.value = collectSources(records)
-
-      buildIndex(shaped)
+      buildIndex(loaded.items)
     }
     catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Failed to load the archive.'
-      console.error('[archive] load failed', cause)
+      error.value = cause instanceof Error ? cause.message : `Failed to load ${spec.title}.`
+      console.error(`[${ns}] load failed`, cause)
     }
     finally {
       loading.value = false
@@ -86,7 +114,7 @@ export function useArchive() {
   function buildIndex(shaped: ArchiveItem[]): void {
     const miniSearch = new MiniSearch<ArchiveItem>({
       idField: 'id',
-      fields: SEARCH_FIELDS,
+      fields: spec.searchFields,
       storeFields: ['id'],
       searchOptions: {
         boost: { name: 2, description: 1 },
@@ -111,7 +139,7 @@ export function useArchive() {
 
     if (searchTerm.value.trim() && index.value) {
       ids = index.value
-        .search(searchTerm.value, { fields: SEARCH_FIELDS })
+        .search(searchTerm.value, { fields: spec.searchFields })
         .map(result => String(result.id))
     }
 
@@ -185,7 +213,7 @@ export function useArchive() {
    * building the wrong integration twice. localStorage keeps the feature
    * working for a visitor today and is trivial to migrate later.
    */
-  const BOOKMARKS_KEY = 'pe:archive:bookmarks'
+  const BOOKMARKS_KEY = `pe:${ns}:bookmarks`
 
   function loadBookmarks(): void {
     if (!import.meta.client) return
@@ -227,6 +255,8 @@ export function useArchive() {
   }
 
   return {
+    // which collection this is
+    spec,
     // state
     loading,
     error,

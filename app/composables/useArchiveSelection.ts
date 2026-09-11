@@ -7,7 +7,9 @@
  */
 export function useArchiveSelection() {
   const archive = useArchive()
-  const openId = useState<string | null>('archive:openClip', () => null)
+  // Per collection, like the rest of the store: an item left open in the
+  // archive must not reopen as a non-existent id in the experience logs.
+  const openId = useState<string | null>(`${archive.spec.id}:openClip`, () => null)
 
   const index = computed(() =>
     openId.value ? archive.displayedIds.value.indexOf(openId.value) : -1,

@@ -105,7 +105,7 @@ watch(() => props.ids, () => {
 
 function posterFor(id: string): string | null {
   const item = archive.getItem(id)
-  return item ? usePlaybackSource(item.filename).poster : null
+  return item ? usePlaybackSource(item.filename, item.kind).poster : null
 }
 
 function nameFor(id: string): string {

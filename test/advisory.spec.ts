@@ -25,7 +25,13 @@ function code(source: string): string {
 }
 
 const modal = read('app/components/archive/ArchiveAdvisoryModal.vue')
-const archivePage = read('app/pages/archive.vue')
+/*
+ * The gate lives in the shared browser, which BOTH the archive and the
+ * experience logs render — the sessions are recordings of people watching
+ * this same material, so they sit behind the same warning.
+ */
+const browser = read('app/components/archive/ArchiveBrowser.vue')
+const BROWSER_PAGES = ['app/pages/archive.vue', 'app/pages/experience-logs.vue']
 const activePlayer = read('app/composables/useActivePlayer.ts')
 
 describe('the advisory cannot be dismissed by accident', () => {
@@ -59,7 +65,22 @@ describe('nothing is reachable or playing behind the advisory', () => {
    * reader user walks straight into the material the warning is about.
    */
   it('marks the archive inert until accepted', () => {
-    expect(code(archivePage)).toMatch(/:inert="!advisory\.accepted\.value"/)
+    expect(code(browser)).toMatch(/:inert="!advisory\.accepted\.value"/)
+  })
+
+  it('shows the advisory modal until accepted', () => {
+    expect(code(browser)).toMatch(/<ArchiveAdvisoryModal v-if="!advisory\.accepted\.value"/)
+  })
+
+  /**
+   * Both guarantees above live in ArchiveBrowser, so they hold for a page only
+   * if that page renders it and nothing of its own. A page that grew its own
+   * template around the browser — or instead of it — could show media with no
+   * gate in front of it, and every test above would still pass.
+   */
+  it.each(BROWSER_PAGES)('%s renders the shared browser and nothing else', (path) => {
+    const template = code(read(path)).match(/<template>([\s\S]*)<\/template>/)?.[1]?.trim()
+    expect(template).toBe('<ArchiveBrowser />')
   })
 
   /**

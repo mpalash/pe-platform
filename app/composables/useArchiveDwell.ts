@@ -49,6 +49,7 @@ function bucketOf(seconds: number): string {
 export function useArchiveDwell(): void {
   const advisory = useArchiveAdvisory()
   const { view } = useArchiveView()
+  const spec = useArchiveCollection()
   const { track } = useAnalytics()
 
   /** Milliseconds banked from stretches that have already ended. */
@@ -80,7 +81,10 @@ export function useArchiveDwell(): void {
     // Filed against /archive explicitly — see the seam. By the time this runs
     // on a route change, `location.pathname` is already the page being
     // navigated TO, and the event would be attributed there.
-    track('archive-dwell', { seconds, bucket: bucketOf(seconds), view: view.value }, '/archive')
+    // Filed against the collection's own page — the archive and the
+    // experience logs share this timer and the event name, and are told apart
+    // in Umami by URL, exactly as their pageviews are.
+    track('archive-dwell', { seconds, bucket: bucketOf(seconds), view: view.value }, spec.path)
   }
 
   function onVisibilityChange(): void {

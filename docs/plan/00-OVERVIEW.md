@@ -221,6 +221,13 @@ Neither is fatal at small scale — CloudFront's always-free 1TB/month is roughl
 of a 2GB work. That is why deferring is reasonable, and why the trigger matters: it converts
 "we'll do it eventually" into a number someone owns.
 
+**Update, September 2026 — HLS arrived per item, as planned.** The experience-log sessions
+(`x_logs/`, 1–55 minutes each) are 720p HLS; archive clips stay MP4. `ArchiveItem.kind` makes
+the choice, and only `usePlaybackSource` reads it. Browsers without native HLS (Firefox, older
+Chrome) get **hls.js** (`light` build, pinned), loaded by dynamic import only when a stream is
+actually played — so it is a library in the one place that plays streams, not a service, and
+the archive's bundle does not change.
+
 **Escape hatch.** Bunny is ~10× cheaper per GB delivered. Because we serve plain files from our
 own bucket, switching is DNS plus config.
 

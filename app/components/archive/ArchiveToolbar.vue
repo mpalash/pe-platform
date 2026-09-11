@@ -15,6 +15,13 @@
 const archive = useArchive()
 const { view, views } = useArchiveView()
 
+/**
+ * The collection this toolbar is filtering. It decides which views the
+ * switcher offers (the experience logs have no galaxy), whether the intensity
+ * selector appears (sessions have no bins), and what is being counted.
+ */
+const spec = archive.spec
+
 const {
   searchTerm, binRange, shuffled, bookmarksOnly, count, total, hasActiveFilters, bookmarks,
 } = archive
@@ -124,8 +131,8 @@ const galaxy = useGalaxyControls()
 const countLabel = computed(() => {
   const shown = count.value.toLocaleString()
   return hasActiveFilters.value
-    ? `${shown} of ${total.value.toLocaleString()} clips`
-    : `${shown} clips`
+    ? `${shown} of ${total.value.toLocaleString()} ${spec.noun.many}`
+    : `${shown} ${spec.noun.many}`
 })
 </script>
 
@@ -207,7 +214,7 @@ const countLabel = computed(() => {
           <label
             for="archive-search"
             class="visually-hidden"
-          >Search the archive</label>
+          >Search {{ spec.title }}</label>
           <input
             id="archive-search"
             ref="searchField"
@@ -243,7 +250,10 @@ const countLabel = computed(() => {
 
         <!-- Named for how Nuxt registers it: components/archive/ArchiveBinSelector.vue
              resolves to <ArchiveBinSelector>, not <BinSelector>. -->
-        <ArchiveBinSelector v-model="binModel" />
+        <ArchiveBinSelector
+          v-if="spec.hasBins"
+          v-model="binModel"
+        />
 
         <!-- Toggles -->
         <div class="toolbar__toggles">
@@ -278,7 +288,7 @@ const countLabel = computed(() => {
             class="toolbar__toggle"
             :class="{ 'toolbar__toggle--on': bookmarksOnly }"
             :aria-pressed="bookmarksOnly"
-            title="Show only bookmarked clips"
+            :title="`Show only saved ${spec.noun.many}`"
             @click="archive.toggleBookmarksOnly()"
           >
             <svg

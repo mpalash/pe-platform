@@ -22,10 +22,19 @@ export interface RawEdit {
   srcURL: string
 }
 
+/**
+ * What kind of media an item is, which is what decides how it plays: a clip is
+ * one file, a session is a stream (ADR-004's "per item"). Only
+ * usePlaybackSource reads it.
+ */
+export type MediaKind = 'clip' | 'session'
+
 export interface ArchiveItem {
   id: string
   /** Raw filename from the archive. Only usePlaybackSource may interpret it. */
   filename: string
+  /** Absent means a clip — every archive item, and every item before sessions existed. */
+  kind?: MediaKind
   name: string
   srcName: string
   srcAuthor: string

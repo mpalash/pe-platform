@@ -399,11 +399,18 @@ describe('the modal steps to the next clip', () => {
     expect(modal).not.toMatch(/const \{ src, poster \} = usePlaybackSource/)
   })
 
-  it('calls load() when the clip changes', () => {
+  it('reconnects and reloads the element when the clip changes', () => {
     // Swapping `src` on an element that is already playing does not reliably
     // re-fetch; the browser keeps decoding the old stream until told otherwise.
-    const stepWatcher = modal.slice(modal.indexOf('watch(() => props.item.id'))
-    expect(stepWatcher).toMatch(/el\.load\(\)/)
+    // The modal watches its source and hands it to useVideoSource, whose
+    // native path is where the `load()` now lives — so it applies to every
+    // player, and to streams as well as clips.
+    const stepWatcher = modal.slice(modal.indexOf('watch(src,'))
+    expect(stepWatcher).toMatch(/await playback\.ensure\(\)/)
+    expect(stepWatcher).toMatch(/immediate: true/)
+
+    const seam = readFileSync(resolve(repoRoot, 'app/composables/usePlaybackSource.ts'), 'utf8')
+    expect(seam).toMatch(/video\.src = src\s*\n[\s\S]{0,600}?video\.load\(\)/)
   })
 })
 

@@ -26,9 +26,17 @@ const props = defineProps<{ item: ArchiveItem }>()
 const archive = useArchive()
 const active = useActivePlayer()
 
-const { src, poster } = usePlaybackSource(props.item.filename)
+const { src, poster } = usePlaybackSource(props.item.filename, props.item.kind)
 
 const videoEl = useTemplateRef<HTMLVideoElement>('videoEl')
+
+/*
+ * Connected on first play, not on mount. A feed renders dozens of these, and
+ * `preload="none"` only stops a progressive file from loading — it does
+ * nothing for a stream that has to be attached through hls.js. Connecting
+ * lazily keeps an unplayed player free for both.
+ */
+const source = useVideoSource(videoEl, computed(() => src))
 
 const isPlaying = ref(false)
 const progress = ref(0)
@@ -44,6 +52,7 @@ async function play(): Promise<void> {
   if (!el || !src) return
   if (!el.paused && !el.ended) return
 
+  await source.ensure()
   el.muted = active.muted.value
 
   try {
@@ -140,7 +149,6 @@ onBeforeUnmount(() => {
       <video
         v-if="src"
         ref="videoEl"
-        :src="src"
         :poster="poster ?? undefined"
         loop
         playsinline
