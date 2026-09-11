@@ -27,6 +27,16 @@ describe('the two collections', () => {
     expect(COLLECTIONS.sessions.views).toEqual(['feed', 'grid'])
   })
 
+  it('opens the experience logs on the grid and the archive on the feed', () => {
+    expect(COLLECTIONS.sessions.defaultView).toBe('grid')
+    expect(COLLECTIONS.archive.defaultView).toBe('feed')
+    // A default the switcher does not offer would mount no view at all.
+    for (const spec of Object.values(COLLECTIONS)) expect(spec.views).toContain(spec.defaultView)
+    const view = read('app/composables/useArchiveView.ts')
+    expect(view).toMatch(/usePersistentState<ArchiveView>\(`\$\{spec\.id\}:view`, \(\) => spec\.defaultView\)/)
+    expect(view).not.toMatch(/spec\.views\[0\]/)
+  })
+
   it('shows the intensity selector only where items have bins', () => {
     expect(COLLECTIONS.archive.hasBins).toBe(true)
     expect(COLLECTIONS.sessions.hasBins).toBe(false)
@@ -80,7 +90,7 @@ describe('the two collections', () => {
     // A persisted 'galaxy' reaching the experience logs would mount no view
     // at all — a blank page with no error.
     const view = read('app/composables/useArchiveView.ts')
-    expect(view).toMatch(/spec\.views\.includes\(stored\.value\) \? stored\.value : spec\.views\[0\]/)
+    expect(view).toMatch(/spec\.views\.includes\(stored\.value\) \? stored\.value : spec\.defaultView/)
   })
 })
 

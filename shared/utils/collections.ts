@@ -37,6 +37,8 @@ export interface CollectionSpec {
   noun: { one: string, many: string }
   /** Which views the switcher offers, in order. */
   views: ArchiveView[]
+  /** The view shown until a visitor picks one. Must be one of `views`. */
+  defaultView: ArchiveView
   /** Whether items carry an intensity bin, and so whether the range selector means anything. */
   hasBins: boolean
   /** Shuffled on arrival, or in the collection's own order. */
@@ -52,6 +54,7 @@ export const COLLECTIONS: Record<CollectionId, CollectionSpec> = {
     title: 'the archive',
     noun: { one: 'clip', many: 'clips' },
     views: ['feed', 'grid', 'galaxy'],
+    defaultView: 'feed',
     hasBins: true,
     defaultShuffled: true,
     searchFields: ['name', 'description', 'srcAuthor', 'srcLocation', 'topics', 'keywords'],
@@ -64,6 +67,8 @@ export const COLLECTIONS: Record<CollectionId, CollectionSpec> = {
    * sessions have no bins to lay out. For the same reason there is no range
    * selector. In their own order rather than shuffled, because a set of 84
    * dated sessions reads as a chronology — shuffling is still one click away.
+   * Opens on the grid: sessions run up to 55 minutes, and a wall of posters
+   * says what is there far better than one long recording at a time does.
    */
   sessions: {
     id: 'sessions',
@@ -71,6 +76,7 @@ export const COLLECTIONS: Record<CollectionId, CollectionSpec> = {
     title: 'the experience logs',
     noun: { one: 'session', many: 'sessions' },
     views: ['feed', 'grid'],
+    defaultView: 'grid',
     hasBins: false,
     defaultShuffled: false,
     searchFields: ['name', 'description'],

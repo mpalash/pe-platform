@@ -14,7 +14,9 @@ export function useArchiveView() {
   // Persisted per collection: a chosen view is a preference, not a per-visit
   // decision, and it is a preference about THAT collection. The archive's key
   // is the one it always had, so an existing visitor keeps their choice.
-  const stored = usePersistentState<ArchiveView>(`${spec.id}:view`, () => spec.views[0]!)
+  // Only a view someone actually chose is stored, so changing a collection's
+  // `defaultView` reaches every visitor who never picked one.
+  const stored = usePersistentState<ArchiveView>(`${spec.id}:view`, () => spec.defaultView)
 
   /*
    * Only ever a view this collection offers. A stored value the collection
@@ -23,7 +25,7 @@ export function useArchiveView() {
    * neither feed nor grid and looks broken with no error anywhere.
    */
   const view = computed<ArchiveView>({
-    get: () => (spec.views.includes(stored.value) ? stored.value : spec.views[0]!),
+    get: () => (spec.views.includes(stored.value) ? stored.value : spec.defaultView),
     set: (next) => { if (spec.views.includes(next)) stored.value = next },
   })
 
