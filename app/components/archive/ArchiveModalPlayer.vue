@@ -551,9 +551,9 @@ watch(src, start, { flush: 'post' })
 }
 
 /* A session's headset graph sits under the video too, so the stage gives up
-   its height — ArchiveSessionGraph's fixed `--graph-block`, 7.5rem. */
+   its height — ArchiveSessionGraph's fixed `--graph-block`, 10rem. */
 .modal__panel--graph {
-  --modal-chrome: 10.5rem;
+  --modal-chrome: 13rem;
 }
 
 /*

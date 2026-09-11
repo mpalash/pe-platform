@@ -242,7 +242,7 @@ function onKeydown(event: KeyboardEvent): void {
  * viewport. Change one, change the other.
  */
 .graph {
-  --graph-block: 7.5rem;
+  --graph-block: 10rem;
   --track: 4px;
 
   display: grid;

@@ -350,3 +350,17 @@ describe('the headset graph: readings from met.csv', () => {
     expect(graph).not.toMatch(/#[0-9a-f]{3,8}\b/i)
   })
 })
+
+describe('the modal makes room for the session graph', () => {
+  it('reserves exactly the controls plus the graph\'s fixed height', () => {
+    // The modal sizes its video from the height left over; if the two drift,
+    // the panel either overflows the viewport or the graph overlaps the controls.
+    const rem = (source: string, pattern: RegExp) => Number(source.match(pattern)?.[1])
+    const graph = rem(read('app/components/archive/ArchiveSessionGraph.vue'), /--graph-block: ([\d.]+)rem;/)
+    const modal = read('app/components/archive/ArchiveModalPlayer.vue')
+    const controls = rem(modal, /--modal-chrome: ([\d.]+)rem; \/\* the controls strip/)
+    const withGraph = rem(modal, /\.modal__panel--graph \{\s*--modal-chrome: ([\d.]+)rem;/)
+    expect(graph).toBe(10)
+    expect(withGraph).toBe(controls + graph)
+  })
+})
