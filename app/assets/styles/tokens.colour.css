@@ -53,6 +53,19 @@
   --focus-width: 2px;
   --focus-offset: 3px;
 
+  /* ─── Data series ──────────────────────────────────────────────────────── */
+  /* The one place the palette leaves monochrome, and only to tell six lines
+     apart in the experience logs' headset graph (ArchiveSessionGraph). They
+     ENCODE, they do not signal — which is why they are muted, even in
+     lightness, and why none of them is the accent. Each doubles as its own
+     legend label, so each clears 4.5:1 on every surface (test/contrast.spec.ts). */
+  --series-1: #7fb2e5; /* attention  */
+  --series-2: #b99be6; /* interest   */
+  --series-3: #6fc7a4; /* engagement */
+  --series-4: #e6a067; /* excitement */
+  --series-5: #cfd27a; /* relaxation */
+  --series-6: #e5838f; /* stress     */
+
   /* ─── State ────────────────────────────────────────────────────────────── */
   --selection-bg: var(--accent);
   --selection-ink: var(--ink-inverse);

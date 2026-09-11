@@ -285,6 +285,13 @@ have to be named in `scripts/seed-settings.ts`.
   from the session's `filenames.csv` — parsed by
   `server/api/experience-logs/[slug]/cues.get.ts` into `[{ at, title }]`,
   because that CSV's first column is the participant's name on every row.
+  Under the video, `ArchiveSessionGraph` plots `met.csv`'s six readings
+  (AT IN EN EX RE ST), served by `…/[slug]/metrics.get.ts`; both routes read
+  through `readSessionCsv` in `server/utils/session-index.ts`, which refuses
+  slugs the index does not list. **An exact 0 in met.csv is "no signal", not
+  a reading** — 536 rows are zero in all six columns at once — so it is
+  parsed as null and the line breaks. The six line colours are the
+  `--series-1..6` tokens, the one place the palette leaves monochrome.
   Never hand either CSV to the browser raw.
 
 - **The ambient pool is Peace-only** (`ALLOWED_BINS` in
@@ -330,6 +337,13 @@ have to be named in `scripts/seed-settings.ts`.
   entirely — even a bare hand-made `<video>` sits at `readyState` 0. Verify
   navigation with a fresh load, and playback in a foregrounded window.
   `document.visibilityState` tells you which situation you are in.
+
+- **A watcher with `immediate: true` runs its first time DURING SETUP,**
+  before any template ref exists — `flush: 'post'` only delays the runs after
+  it. The modal player started its first clip that way, so `videoEl` was null,
+  nothing was attached, and every clip opened from the grid or galaxy sat on
+  its poster (only stepping to the next one played). Anything that needs the
+  element on the first run goes in `onMounted`.
 
 - **New exports under `shared/` need a dev-server restart.** Auto-import does
   not rescan on HMR, so a freshly added export is `undefined` at runtime while

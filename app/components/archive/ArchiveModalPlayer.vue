@@ -49,6 +49,10 @@ const playback = useVideoSource(videoEl, src)
 /** For a session: the archive clip on screen at the playhead. Inert for a clip. */
 const { title: onScreen, update: updateCue } = useSessionCues(toRef(props, 'item'), videoEl)
 
+/** For a session: the headset's readings, graphed under the video. */
+const { metrics, load: loadMetrics } = useSessionMetrics(toRef(props, 'item'))
+const isSession = computed(() => props.item.kind === 'session')
+
 const isPlaying = ref(false)
 const muted = ref(false)
 const progress = ref(0)
@@ -91,6 +95,12 @@ function onTimeUpdate(): void {
   duration.value = el.duration
   progress.value = (el.currentTime / el.duration) * 100
   void updateCue()
+  loadMetrics()
+}
+
+function onSeeked(): void {
+  void updateCue()
+  loadMetrics()
 }
 
 function seek(event: Event): void {
@@ -205,27 +215,38 @@ onBeforeUnmount(() => {
   previouslyFocused?.focus?.()
 })
 
-// Moving to another clip should start it, not leave a paused frame.
 /*
  * Opening the modal, or stepping to another item, connects its source and
  * starts it rather than leaving a paused frame.
  *
  * On the source, not the item id: that is what actually has to change on the
- * element, and `immediate` covers the first item as well as every later one.
- * `flush: 'post'` so the <video> exists when this runs. Re-fetching the new
- * source (the `load()` that stepping used to need here) is useVideoSource's
- * job now, alongside knowing whether it is a clip or a stream.
+ * element. Re-fetching the new source (the `load()` that stepping used to need
+ * here) is useVideoSource's job, alongside knowing whether it is a clip or a
+ * stream.
+ *
+ * The FIRST item is started from onMounted, not with `immediate: true`. An
+ * immediate watcher's first run is synchronous, during setup — `flush: 'post'`
+ * only governs the runs after it — so it ran before the <video> existed,
+ * `ensure()` found no element, and the clip the modal opened on never got a
+ * source at all. Every clip opened from the grid or the galaxy sat on its
+ * poster; only stepping to the next one played.
  */
-watch(src, async () => {
+async function start(): Promise<void> {
   progress.value = 0
   currentTime.value = 0
   duration.value = 0
+  // One modal is one session, so its readings are fetched up front rather
+  // than on first play — the graph should not wait on autoplay being allowed.
+  loadMetrics()
 
   await playback.ensure()
   videoEl.value?.play().catch(() => {
     isPlaying.value = false
   })
-}, { immediate: true, flush: 'post' })
+}
+
+onMounted(start)
+watch(src, start, { flush: 'post' })
 </script>
 
 <template>
@@ -242,7 +263,10 @@ watch(src, async () => {
       @click="emit('close')"
     />
 
-    <div class="modal__panel frosted">
+    <div
+      class="modal__panel frosted"
+      :class="{ 'modal__panel--graph': isSession && src }"
+    >
       <div class="modal__main">
         <div class="modal__stage">
           <video
@@ -254,7 +278,7 @@ watch(src, async () => {
             preload="metadata"
             class="modal__video"
             @timeupdate="onTimeUpdate"
-            @seeked="updateCue"
+            @seeked="onSeeked"
             @play="isPlaying = true"
             @pause="isPlaying = false"
             @ended="onEnded"
@@ -309,6 +333,12 @@ watch(src, async () => {
             ›
           </button>
         </div>
+
+        <ArchiveSessionGraph
+          v-if="isSession && src"
+          :metrics="metrics"
+          :time="currentTime"
+        />
 
         <div
           v-if="src"
@@ -503,6 +533,12 @@ watch(src, async () => {
   /* The panel never scrolls; the metadata column does. A scrolling panel would
      move the video when a long description arrived. */
   overflow: hidden;
+}
+
+/* A session's headset graph sits under the video too, so the stage gives up
+   its height — ArchiveSessionGraph's fixed `--graph-block`, 7rem. */
+.modal__panel--graph {
+  --modal-chrome: 10rem;
 }
 
 /*

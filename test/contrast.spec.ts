@@ -71,6 +71,24 @@ describe('accent', () => {
   })
 })
 
+describe('data series', () => {
+  const series = [1, 2, 3, 4, 5, 6].map(n => `series-${n}`)
+
+  // Each series colour is also its legend label's text colour, so it is held
+  // to the text threshold, not the 3:1 for graphics.
+  it.each(series.flatMap(name => surfaces.map(surface => [name, surface] as const)))(
+    '--%s is readable as text on --%s',
+    (name, surface) => {
+      const ratio = contrastRatio(token(name), token(surface))!
+      expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
+    },
+  )
+
+  it('never borrows the accent, which is reserved for signal', () => {
+    for (const name of series) expect(token(name).toLowerCase()).not.toBe(token('accent').toLowerCase())
+  })
+})
+
 describe('the grading helper agrees with the WCAG thresholds', () => {
   it.each([
     [21, false, 'AAA'],

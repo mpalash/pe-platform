@@ -120,30 +120,39 @@ function wallSeconds(stamp: string): number | null {
 }
 
 /**
- * Parses filenames.csv into cues relative to the start of the video.
+ * The rows of a session CSV, timed relative to the start of the video.
+ *
+ * Both session CSVs share this shape: `subject;YYYY-MM-DD HH:MM:SS.ss;…`. The
+ * subject column is DROPPED here — `fields` is everything after the stamp —
+ * so nothing built on this can pass a participant's name on by accident.
  *
  * `recorded` is the video's start as written in its filename. Rows before it
  * belong to an earlier session — one headset logged into a single file for
  * eight hours on the opening night — and are dropped, as are rows past
  * `duration`. When the recording has no time of day (one filename lost it),
- * the first row is taken as the start: the CSV begins within seconds of the
+ * the first row is taken as the start: the CSVs begin within seconds of the
  * video everywhere it can be checked.
  */
-export function parseCues(csv: string, recorded: string | null, duration: number): SessionCue[] {
+function alignedRows(csv: string, recorded: string | null, duration: number): { at: number, fields: string[] }[] {
   const rows = csv.split(/\r?\n/)
     .map(line => line.split(';'))
-    .map(([, stamp = '', clip = '']) => ({ t: wallSeconds(stamp), clip }))
-    .filter((row): row is { t: number, clip: string } => row.t !== null)
+    .map(([, stamp = '', ...fields]) => ({ t: wallSeconds(stamp), fields }))
+    .filter((row): row is { t: number, fields: string[] } => row.t !== null)
 
   const start = (recorded && /\d{2}:\d{2}/.test(recorded) ? wallSeconds(`${recorded}.00`) : null)
     ?? rows[0]?.t
   if (start === undefined || start === null) return []
 
+  return rows
+    .map(row => ({ at: Math.round((row.t - start) * 100) / 100, fields: row.fields }))
+    .filter(row => row.at >= 0 && row.at <= duration)
+}
+
+/** Parses filenames.csv into cues relative to the start of the video. */
+export function parseCues(csv: string, recorded: string | null, duration: number): SessionCue[] {
   const cues: SessionCue[] = []
-  for (const row of rows) {
-    const at = Math.round((row.t - start) * 100) / 100
-    if (at < 0 || at > duration) continue
-    const title = row.clip.trim() ? cueTitle(row.clip) : null
+  for (const { at, fields: [clip = ''] } of alignedRows(csv, recorded, duration)) {
+    const title = clip.trim() ? cueTitle(clip) : null
     // Consecutive rows naming the same clip are one cue.
     if (cues.length && cues.at(-1)!.title === title) continue
     cues.push({ at, title })
@@ -165,4 +174,57 @@ export function cueAt(cues: readonly SessionCue[], time: number): string | null 
     else hi = mid - 1
   }
   return found >= 0 ? cues[found]!.title : null
+}
+
+/* ── Metrics: the headset's readings, from met.csv ────────────────────────────
+ *
+ * A session's `met.csv` logs six performance metrics roughly every ten seconds:
+ * `subject;YYYY-MM-DD HH:MM:SS.ss;attention;interest;engagement;excitement;
+ * relaxation;stress`, each between 0 and 1. The player plots them under the
+ * video. As with the cues, the subject column never leaves `alignedRows`.
+ */
+
+/** The six metrics, in the CSV's column order. `short` is the graph's legend. */
+export const SESSION_METRICS = [
+  { key: 'attention', label: 'Attention', short: 'AT' },
+  { key: 'interest', label: 'Interest', short: 'IN' },
+  { key: 'engagement', label: 'Engagement', short: 'EN' },
+  { key: 'excitement', label: 'Excitement', short: 'EX' },
+  { key: 'relaxation', label: 'Relaxation', short: 'RE' },
+  { key: 'stress', label: 'Stress', short: 'ST' },
+] as const
+
+export interface SessionReading {
+  /** Seconds into the video. */
+  at: number
+  /** One per SESSION_METRICS entry, in order; null where there was no reading. */
+  values: (number | null)[]
+}
+
+export interface SessionMetrics {
+  /** The recording's length, so the graph's time axis matches the video's. */
+  duration: number
+  readings: SessionReading[]
+}
+
+/**
+ * One reading. An EXACT zero is the headset reporting no signal, not a
+ * measurement: 536 rows across the logs are zero in all six columns at once
+ * (a headset off, or not yet on a head), and a genuine reading of 0.000… from
+ * a 0–1 float is not something the device produces. Plotted as zero, every
+ * dropout would draw a cliff to the floor; as null, the line breaks instead.
+ */
+function reading(field: string | undefined): number | null {
+  const value = Number(field)
+  if (!field?.trim() || !Number.isFinite(value) || value === 0) return null
+  return Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000
+}
+
+/** Parses met.csv into readings relative to the start of the video. */
+export function parseMetrics(csv: string, recorded: string | null, duration: number): SessionMetrics {
+  const readings = alignedRows(csv, recorded, duration)
+    .map(({ at, fields }) => ({ at, values: SESSION_METRICS.map((_, i) => reading(fields[i])) }))
+    // A row with no reading at all adds nothing a gap does not already show.
+    .filter(row => row.values.some(value => value !== null))
+  return { duration, readings }
 }

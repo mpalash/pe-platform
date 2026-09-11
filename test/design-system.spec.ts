@@ -399,15 +399,24 @@ describe('the modal steps to the next clip', () => {
     expect(modal).not.toMatch(/const \{ src, poster \} = usePlaybackSource/)
   })
 
+  it('connects the clip it OPENS on, not only the ones stepped to', () => {
+    // An immediate watcher's first run is synchronous, in setup, before the
+    // <video> exists — `flush: 'post'` does not delay it. The modal used to
+    // start that way, so every clip opened from the grid or the galaxy sat on
+    // its poster with no source attached. The first start is onMounted's.
+    expect(modal).toMatch(/onMounted\(start\)/)
+    expect(modal.slice(modal.indexOf('watch(src,'))).not.toMatch(/^[^\n]*immediate: true/)
+  })
+
   it('reconnects and reloads the element when the clip changes', () => {
     // Swapping `src` on an element that is already playing does not reliably
     // re-fetch; the browser keeps decoding the old stream until told otherwise.
     // The modal watches its source and hands it to useVideoSource, whose
     // native path is where the `load()` now lives — so it applies to every
     // player, and to streams as well as clips.
-    const stepWatcher = modal.slice(modal.indexOf('watch(src,'))
-    expect(stepWatcher).toMatch(/await playback\.ensure\(\)/)
-    expect(stepWatcher).toMatch(/immediate: true/)
+    const start = modal.slice(modal.indexOf('async function start()'))
+    expect(start).toMatch(/await playback\.ensure\(\)/)
+    expect(modal).toMatch(/watch\(src, start, \{ flush: 'post' \}\)/)
 
     const seam = readFileSync(resolve(repoRoot, 'app/composables/usePlaybackSource.ts'), 'utf8')
     expect(seam).toMatch(/video\.src = src\s*\n[\s\S]{0,600}?video\.load\(\)/)

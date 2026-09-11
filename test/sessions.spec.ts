@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { COLLECTIONS, isCollectionPath } from '../shared/utils/collections'
-import { cueAt, cueTitle, parseCues, sessionLabel, sessionLength, shapeSession, shapeSessions } from '../shared/utils/sessions'
+import { cueAt, cueTitle, parseCues, parseMetrics, SESSION_METRICS, sessionLabel, sessionLength, shapeSession, shapeSessions } from '../shared/utils/sessions'
 
 const repoRoot = resolve(import.meta.dirname, '..')
 const read = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8')
@@ -241,16 +241,78 @@ describe('which clip was on screen: cues from filenames.csv', () => {
 
   it('is served parsed, for sessions the index lists, and never as raw CSV', () => {
     const route = code('server/api/experience-logs/[slug]/cues.get.ts')
-    expect(route).toMatch(/\.find\(item => item\.slug === slug\)/)
-    expect(route).toMatch(/if \(!entry\) throw createError\(\{ statusCode: 404/)
-    expect(route).toMatch(/return parseCues\(csv,/)
+    expect(route).toMatch(/readSessionCsv\(getRouterParam\(event, 'slug'\) \?\? '', 'filenames'\)/)
+    expect(route).toMatch(/return csv \? parseCues\(csv,/)
+
+    const reader = code('server/utils/session-index.ts')
+    expect(reader).toMatch(/\.find\(item => item\.slug === slug\)/)
+    expect(reader).toMatch(/if \(!entry\) throw createError\(\{ statusCode: 404/)
   })
 
   it.each(['ArchivePlayer.vue', 'ArchiveModalPlayer.vue'])('%s follows the playhead on play and on seek', (player) => {
     const source = read(`app/components/archive/${player}`)
     expect(source).toMatch(/useSessionCues\(toRef\(props, 'item'\), videoEl\)/)
-    expect(source).toMatch(/@seeked="updateCue"/)
+    expect(source).toMatch(/@seeked="onSeeked"/)
+    expect(source.slice(source.indexOf('function onSeeked'))).toMatch(/^function onSeeked\(\): void \{\n\s+void updateCue\(\)/)
     expect(source).toMatch(/void updateCue\(\)/)
     expect(source).toMatch(/<ArchiveSessionCue :title="onScreen" \/>/)
+  })
+})
+
+describe('the headset graph: readings from met.csv', () => {
+  // Real shape: subject;timestamp;attention;interest;engagement;excitement;relaxation;stress
+  const csv = [
+    'ali;2025-01-14 09:00:00.00;0.5;0.5;0.5;0.5;0.5;0.5', // an earlier session
+    'ali;2025-01-14 12:26:10.84;0.44107401371;0.41738200188;0.39310199022;0.20981000364;0.6970589757;0.3836210072',
+    'ali;2025-01-14 12:26:20.83;0;0;0;0;0;0', // headset off
+    'ali;2025-01-14 12:26:30.84;0.45998600125;0;0.48863101006;0.16379599273;0.69497197866;0.31505998969',
+    'ali;2025-01-14 12:40:00.00;0.5;0.5;0.5;0.5;0.5;0.5', // past the end
+  ].join('\n')
+
+  it('plots the six metrics in the CSV\'s column order, as two-letter labels', () => {
+    expect(SESSION_METRICS.map(m => m.label))
+      .toEqual(['Attention', 'Interest', 'Engagement', 'Excitement', 'Relaxation', 'Stress'])
+    expect(SESSION_METRICS.map(m => m.short)).toEqual(['AT', 'IN', 'EN', 'EX', 'RE', 'ST'])
+  })
+
+  it('aligns readings to the video, and drops rows outside it', () => {
+    const { duration, readings } = parseMetrics(csv, '2025-01-14 12:26:02', 600)
+    expect(duration).toBe(600)
+    expect(readings.map(r => r.at)).toEqual([8.84, 28.84])
+    expect(readings[0]!.values).toEqual([0.441, 0.417, 0.393, 0.21, 0.697, 0.384])
+  })
+
+  it('reads an exact zero as no signal, so the line breaks instead of diving', () => {
+    const { readings } = parseMetrics(csv, '2025-01-14 12:26:02', 600)
+    // The all-zero row is gone entirely; a single zero is a gap in one line.
+    expect(readings).toHaveLength(2)
+    expect(readings[1]!.values[1]).toBeNull()
+    expect(readings[1]!.values[0]).toBe(0.46)
+  })
+
+  it('never carries the subject column', () => {
+    expect(JSON.stringify(parseMetrics(csv, '2025-01-14 12:26:02', 600))).not.toMatch(/ali/)
+  })
+
+  it('is served parsed, for sessions the index lists, and never as raw CSV', () => {
+    const route = code('server/api/experience-logs/[slug]/metrics.get.ts')
+    expect(route).toMatch(/readSessionCsv\(getRouterParam\(event, 'slug'\) \?\? '', 'met'\)/)
+    expect(route).toMatch(/parseMetrics\(csv,/)
+  })
+
+  it.each(['ArchivePlayer.vue', 'ArchiveModalPlayer.vue'])('%s draws it under the video, for sessions only', (player) => {
+    const source = read(`app/components/archive/${player}`)
+    expect(source).toMatch(/useSessionMetrics\(toRef\(props, 'item'\)\)/)
+    expect(source).toMatch(/<ArchiveSessionGraph\s+v-if="[^"]*session[^"]*"/i)
+    // Under the video: after the stage, before the controls.
+    const graph = source.indexOf('<ArchiveSessionGraph')
+    expect(graph).toBeGreaterThan(source.indexOf('<video'))
+    expect(graph).toBeLessThan(source.search(/class="(clip|modal)__controls"/))
+  })
+
+  it('draws with the series tokens, not colours of its own (hard rule 19\'s spirit)', () => {
+    const graph = read('app/components/archive/ArchiveSessionGraph.vue')
+    expect(graph).toMatch(/var\(--series-\$\{index \+ 1\}\)/)
+    expect(graph).not.toMatch(/#[0-9a-f]{3,8}\b/i)
   })
 })
