@@ -8,7 +8,16 @@
 export default defineEventHandler(async (event) => {
   const path = String(getQuery(event)['path'] ?? '/')
 
-  const page = await getPageByPath(path, false)
+  let page: Awaited<ReturnType<typeof getPageByPath>>
+  try {
+    page = await getPageByPath(path, false)
+  }
+  catch (cause) {
+    // Directus unreachable or failing. Said as such, so the page can tell an
+    // outage from a missing page — see [...slug].vue.
+    console.error('[content/page] Directus request failed', cause)
+    throw createError({ statusCode: 503, statusMessage: 'Content is temporarily unavailable' })
+  }
 
   if (!page) {
     throw createError({ statusCode: 404, statusMessage: 'Page not found' })

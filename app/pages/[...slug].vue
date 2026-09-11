@@ -18,6 +18,18 @@ const { data: page, error } = await useFetch('/api/content/page', {
   key: () => `page:${path.value}`,
 })
 
+/*
+ * A missing page and an unreachable CMS are different failures, and used to be
+ * reported as the same one: any error at all became "Page not found". With
+ * Directus down, every content page — the homepage included — told visitors
+ * and search engines that it did not exist. A 404 is an instruction to forget
+ * the URL; a 503 is an instruction to come back. Only the API's own 404 means
+ * the page is gone.
+ */
+if (error.value && error.value.statusCode !== 404) {
+  throw createError({ statusCode: 503, statusMessage: 'This page is temporarily unavailable', fatal: true })
+}
+
 if (error.value || !page.value) {
   throw createError({ statusCode: 404, statusMessage: 'Page not found', fatal: true })
 }
