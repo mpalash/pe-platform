@@ -64,3 +64,34 @@ describe('secrets stay out of public runtime config', () => {
     expect(tokenIndex).toBeLessThan(publicIndex)
   })
 })
+
+describe('prerendered editorial pages', () => {
+  const directus = readFileSync(resolve(repoRoot, 'server/utils/directus.ts'), 'utf8')
+
+  it('prerenders by crawling from the home page, and fails the build on any error', () => {
+    // A build that cannot reach Directus must go red, not ship pages rendered
+    // from fallbacks under a green deploy.
+    expect(nuxtConfig).toMatch(/crawlLinks: true/)
+    expect(nuxtConfig).toMatch(/routes: \['\/'\]/)
+    expect(nuxtConfig).toMatch(/failOnError: true/)
+  })
+
+  it.each(['/archive', '/experience-logs', '/source-index', '/preview'])(
+    'does not prerender %s',
+    (route) => {
+      const ignore = nuxtConfig.match(/ignore: \[([^\]]*)\]/)?.[1] ?? ''
+      expect(ignore).toContain(`'${route}'`)
+    },
+  )
+
+  it('keeps Nitro\'s cache in memory while prerendering', () => {
+    // On disk, a rebuild inside the swr window was served the previous
+    // build's pages — a publish-then-redeploy could ship the old text, and a
+    // build with Directus unreachable passed without asking it anything.
+    expect(nuxtConfig).toMatch(/cache: \{ driver: 'memory' \}/)
+  })
+
+  it('uses the build-time Directus address only while prerendering', () => {
+    expect(directus).toMatch(/\(import\.meta\.prerender && process\.env\.PRERENDER_DIRECTUS_URL\) \|\| config\.directusUrl/)
+  })
+})

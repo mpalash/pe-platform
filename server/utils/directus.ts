@@ -40,7 +40,15 @@ export function useDirectus(): PlatformDirectusClient {
   if (client) return client
 
   const config = useRuntimeConfig()
-  const url = config.directusUrl
+  /*
+   * Prerendering the editorial pages happens during the BUILD, and a build
+   * cannot always reach the address the running server uses. On Railway the
+   * server talks to Directus over the private network, which builds do not
+   * get — so PRERENDER_DIRECTUS_URL (the public address) is used while
+   * prerendering, and only then. Unset, as it is locally, the normal URL
+   * serves both. See docs/plan/RAILWAY.md.
+   */
+  const url = (import.meta.prerender && process.env.PRERENDER_DIRECTUS_URL) || config.directusUrl
   const token = config.directusServiceToken
 
   if (!url) {

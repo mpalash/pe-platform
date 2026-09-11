@@ -201,6 +201,14 @@ queries fields Directus owns.
 Email is not configured yet: `docs/plan/SES.md` has the state and the remaining
 steps. SES is still sandboxed, so sign-in reaches verified addresses only.
 
+**The editorial pages are prerendered at build time** (reversing Phase 4 §4.5 —
+see the rendering note in `nuxt.config.ts`). Visitors never touch Directus to
+read them. Two consequences: **a publish needs a redeploy** of the Nuxt service,
+and **the build needs Directus reachable** — on Railway via
+`PRERENDER_DIRECTUS_URL` (the public address), since builds cannot use the
+private network. A build that cannot reach Directus fails, on purpose. The
+archive, experience logs and source index are not prerendered.
+
 `STORAGE_LOCATIONS=s3` in production, not `s3,local`: the container disk is
 ephemeral, so a `local` location loses uploads on every deploy.
 
@@ -230,8 +238,15 @@ have to be named in `scripts/seed-settings.ts`.
   server in development. Anything the server needs to read goes in
   `server/assets/` and comes back through `useStorage('assets:server')`.
 
-- **`defineCachedEventHandler` persists to `.nuxt/cache/nitro/handlers/` on
-  disk, and that survives a dev-server restart.** Both artefact routes
+- **Nitro's cache is in MEMORY for dev and prerendering** (`devStorage.cache`
+  in `nuxt.config.ts`). It used to persist to `.nuxt/cache/nitro/` on disk,
+  which did two kinds of damage: in dev a cached artefact survived restarts,
+  and at build time the production `swr` rule handed a rebuild the PREVIOUS
+  build's pages, so a redeploy made to publish an edit could prerender the
+  version from before it — and a build with Directus unreachable "passed".
+  Do not move it back to disk. Historically:
+  **`defineCachedEventHandler` persisted to `.nuxt/cache/nitro/handlers/` on
+  disk, and that survived a dev-server restart.** Both artefact routes
   (`ambient-pool`, `sources`) therefore carry
   `shouldBypassCache: () => import.meta.dev`. Without it, regenerating an
   artefact leaves the API serving the previous one for an hour of wall-clock

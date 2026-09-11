@@ -242,3 +242,37 @@ testing. Empty means no tracker at all.
 **Still owed:** a plain-language line on the Disclaimers page saying analytics
 exist and what they collect. Cookieless and PII-free means no consent banner is
 required; it does not mean transparency is optional (GDPR Art. 13).
+
+---
+
+## 7. Prerendered editorial pages (2026-09-11)
+
+The editorial pages — home, About, Research, FAQs, Disclaimers and anything
+they link to — are now **built as static files** (see the rendering note in
+`nuxt.config.ts`). Visitors no longer touch Directus to read them, but two
+things follow for this service.
+
+**The build needs Directus.** Prerendering runs during `pnpm build` and fetches
+every page from Directus. The Nuxt service reaches Directus over the private
+network (`NUXT_DIRECTUS_URL`, §4), which is not available to builds. Add, on
+the **Nuxt** service:
+
+```
+PRERENDER_DIRECTUS_URL=https://cms.purgatoryedit.com
+```
+
+It is read only while prerendering (`server/utils/directus.ts`); the running
+server keeps the private address. The build **fails** if Directus cannot be
+reached, deliberately (`failOnError`) — a green deploy of blank pages is worse
+than a red one. A failed build leaves the previous deployment serving.
+
+**Publishing needs a redeploy.** An edit in Directus is not live until the
+Nuxt service is rebuilt: redeploy it from the Railway dashboard after
+publishing. A page that did not exist at the last build still renders on
+request, so a new page is reachable at once — it just is not static yet.
+Automating the rebuild (a Directus Flow calling Railway's API on publish) is
+the obvious next step and is not done.
+
+**Order still holds** (`DEPLOYMENT.md` §5): schema, then Directus, then Nuxt —
+and now also before the Nuxt *build*, since the build reads the content.
+

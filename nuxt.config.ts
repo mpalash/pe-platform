@@ -120,18 +120,27 @@ export default defineNuxtConfig({
   },
 
   /*
-   * Rendering strategy (Phase 4 §4.5).
+   * Rendering strategy — REVISED 2026-09-11, reversing Phase 4 §4.5.
    *
-   * Content pages are cached-and-revalidated rather than prerendered. Prerender
-   * would need a live Directus during `pnpm build`, which CI does not have and
-   * should not need — a build that depends on a running backend is a build that
-   * fails for reasons unrelated to the code.
+   * The editorial pages are PRERENDERED at build time (see `nitro.prerender`
+   * below). They were cached-and-revalidated, which kept Directus in the path
+   * of every visitor: in production a restart emptied the in-memory cache, and
+   * in-app navigation fetched content straight from Directus uncached, so a
+   * CMS outage became a site outage. As static files they are served with no
+   * backend involved at all, and in-app navigation reads their prerendered
+   * payloads rather than the API.
    *
-   * That also answers "how does a publish trigger a rebuild": it does not. The
-   * page revalidates within the window below. A Directus Flow calling a cache
-   * invalidation endpoint can make it immediate, but that needs a deploy target
-   * to point at — Phase 7. Editors are told the window; nobody is left
-   * publishing and wondering why nothing changed.
+   * What that costs, stated plainly:
+   *  - A publish is not live until the next build. There is no automatic
+   *    rebuild yet; redeploy the Nuxt service after publishing (RAILWAY.md).
+   *  - The build needs Directus reachable. Phase 4 rejected prerendering for
+   *    exactly this reason, when there was no reachable Directus to build
+   *    against; the deployed one has a public URL now.
+   *
+   * The archive, experience logs and source index are NOT prerendered: they
+   * are applications over their own data, not authored pages. Anything not
+   * prerendered — including a page published since the last build — still
+   * renders on request, under the rules below.
    */
   routeRules: {
     // Draft content must never be cached or indexed.
@@ -157,6 +166,23 @@ export default defineNuxtConfig({
 
   nitro: {
     /*
+     * The editorial pages, as static files. Found by crawling from the home
+     * page, which reaches every page in the menu and every page they link to;
+     * a page linked from nowhere is not prerendered and falls back to
+     * rendering on request.
+     *
+     * `failOnError`: a build that cannot reach Directus must FAIL, not ship
+     * pages rendered from fallbacks — a site with blank editorial pages and a
+     * green deploy is worse than a red deploy.
+     */
+    prerender: {
+      crawlLinks: true,
+      routes: ['/'],
+      ignore: ['/archive', '/experience-logs', '/source-index', '/preview', '/api'],
+      failOnError: true,
+    },
+
+    /*
      * Filesystem store for the magic-link RATE-LIMIT counters, and nothing else
      * (server/api/auth/request.post.ts). Login tokens and sessions used to live
      * here too; they are Directus collections now (`auth_login_tokens`,
@@ -174,6 +200,19 @@ export default defineNuxtConfig({
     },
     devStorage: {
       auth: { driver: 'fs', base: '.data/auth' },
+      /*
+       * Nitro's cache in memory, not on disk — for development AND for
+       * prerendering, which is what `devStorage` covers.
+       *
+       * On disk (`.nuxt/cache/nitro`) it outlives the process, and the
+       * production `swr` route rule applies while prerendering. So a second
+       * build within ten minutes of the first was handed the first build's
+       * pages from that cache and never asked Directus anything: a redeploy
+       * made to publish an edit could prerender the version from before it.
+       * In memory, every build renders from Directus. (It also ended the dev
+       * trap of a cached artefact surviving a restart.)
+       */
+      cache: { driver: 'memory' },
     },
   },
 
