@@ -38,6 +38,9 @@ const videoEl = useTemplateRef<HTMLVideoElement>('videoEl')
  */
 const source = useVideoSource(videoEl, computed(() => src))
 
+/** For a session: the archive clip on screen at the playhead. Inert for a clip. */
+const { title: onScreen, update: updateCue } = useSessionCues(toRef(props, 'item'), videoEl)
+
 const isPlaying = ref(false)
 const progress = ref(0)
 const remaining = ref(0)
@@ -107,6 +110,7 @@ function onTimeUpdate(): void {
   duration.value = el.duration
   progress.value = (el.currentTime / el.duration) * 100
   remaining.value = el.duration - el.currentTime
+  void updateCue()
 }
 
 function formatTime(seconds: number): string {
@@ -155,6 +159,7 @@ onBeforeUnmount(() => {
         preload="none"
         :muted="active.muted.value"
         @timeupdate="onTimeUpdate"
+        @seeked="updateCue"
         @play="isPlaying = true"
         @pause="isPlaying = false"
         @click.stop="togglePlay"
@@ -165,6 +170,7 @@ onBeforeUnmount(() => {
       >
         Media is not configured — set <code>NUXT_PUBLIC_MEDIA_BASE</code>.
       </p>
+      <ArchiveSessionCue :title="onScreen" />
     </Frame>
 
     <div

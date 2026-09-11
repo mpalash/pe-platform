@@ -280,7 +280,12 @@ have to be named in `scripts/seed-settings.ts`.
   names on the SERVER so they never reach a browser — sessions are labelled by
   date and time. Two limits on that: **the folder slugs still contain the
   names**, and they are in every media URL; and the whole prefix, CSVs
-  included, is as publicly readable as the rest of the bucket.
+  included, is as publicly readable as the rest of the bucket. While a
+  session plays, `ArchiveSessionCue` shows which archive clip was on screen,
+  from the session's `filenames.csv` — parsed by
+  `server/api/experience-logs/[slug]/cues.get.ts` into `[{ at, title }]`,
+  because that CSV's first column is the participant's name on every row.
+  Never hand either CSV to the browser raw.
 
 - **The ambient pool is Peace-only** (`ALLOWED_BINS` in
   `scripts/build-ambient-pool.ts`). The player has no advisory in front of it,

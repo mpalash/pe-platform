@@ -46,6 +46,9 @@ const videoEl = useTemplateRef<HTMLVideoElement>('videoEl')
 /** Keeps the <video> on the current item's source, clip or stream alike. */
 const playback = useVideoSource(videoEl, src)
 
+/** For a session: the archive clip on screen at the playhead. Inert for a clip. */
+const { title: onScreen, update: updateCue } = useSessionCues(toRef(props, 'item'), videoEl)
+
 const isPlaying = ref(false)
 const muted = ref(false)
 const progress = ref(0)
@@ -87,6 +90,7 @@ function onTimeUpdate(): void {
   currentTime.value = el.currentTime
   duration.value = el.duration
   progress.value = (el.currentTime / el.duration) * 100
+  void updateCue()
 }
 
 function seek(event: Event): void {
@@ -250,6 +254,7 @@ watch(src, async () => {
             preload="metadata"
             class="modal__video"
             @timeupdate="onTimeUpdate"
+            @seeked="updateCue"
             @play="isPlaying = true"
             @pause="isPlaying = false"
             @ended="onEnded"
@@ -261,6 +266,7 @@ watch(src, async () => {
           >
             Media is not configured, so this clip cannot play.
           </p>
+          <ArchiveSessionCue :title="onScreen" />
 
           <button
             type="button"

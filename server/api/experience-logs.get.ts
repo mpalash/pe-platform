@@ -1,4 +1,4 @@
-import { shapeSessions, type SessionIndexEntry } from '~~/shared/utils/sessions'
+import { shapeSessions } from '~~/shared/utils/sessions'
 
 /**
  * The experience-log sessions, shaped as archive items.
@@ -16,30 +16,12 @@ import { shapeSessions, type SessionIndexEntry } from '~~/shared/utils/sessions'
  * explicit development opt-in usePlaybackSource honours — this is 60KB of JSON,
  * not video, but the rule is simpler kept whole than kept mostly.
  *
- * Cached for five minutes. Bypassed in dev, because the cache persists to disk
- * and survives restarts (see CLAUDE.md), which looks exactly like a rerun of
- * the xlog pipeline not having worked.
+ * Cached for five minutes; bypassed in dev, so a rerun of the xlog pipeline
+ * shows at once. Reading and the media base live in server/utils/session-index.ts,
+ * shared with the per-session cues.
  */
 export default defineCachedEventHandler(async () => {
-  const media = useRuntimeConfig().public
-  const cdn = String(media.mediaBase ?? '').trim()
-  const origin = media.mediaAllowOriginFallback ? String(media.mediaOrigin ?? '').trim() : ''
-  const base = cdn || origin
-
-  if (!base) {
-    throw createError({ statusCode: 503, statusMessage: 'Media is not configured.' })
-  }
-
-  let index: { items?: SessionIndexEntry[] }
-  try {
-    index = await $fetch(`${base.replace(/\/$/, '')}/x_logs/index.json`)
-  }
-  catch (cause) {
-    console.error('[experience-logs] could not read x_logs/index.json', cause)
-    throw createError({ statusCode: 502, statusMessage: 'The experience logs could not be loaded.' })
-  }
-
-  return shapeSessions(index.items ?? [])
+  return shapeSessions(await readSessionIndex())
 }, {
   name: 'experience-logs',
   maxAge: 60 * 5,

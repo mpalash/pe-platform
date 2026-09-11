@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { COLLECTIONS, isCollectionPath } from '../shared/utils/collections'
-import { sessionLabel, sessionLength, shapeSession, shapeSessions } from '../shared/utils/sessions'
+import { cueAt, cueTitle, parseCues, sessionLabel, sessionLength, shapeSession, shapeSessions } from '../shared/utils/sessions'
 
 const repoRoot = resolve(import.meta.dirname, '..')
 const read = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8')
@@ -181,5 +181,76 @@ describe('hls.js', () => {
     const seam = read('app/composables/usePlaybackSource.ts')
     expect(seam).toMatch(/if \(!isCurrent\(\)\) return \(\) => \{\}/)
     expect(seam).toMatch(/if \(video\.src !== mine\) return/)
+  })
+})
+
+describe('which clip was on screen: cues from filenames.csv', () => {
+  // Real shape: subject;timestamp;clip — the subject is the participant.
+  const csv = [
+    'ali;2025-01-14 12:26:07.99;',
+    'ali;2025-01-14 12:26:08.07;Soldiers fighting with swords - 1_1_HAP.mov',
+    'ali;2025-01-14 12:26:16.44;19 Minutes of John Wick Linked Comp 105-Untitled Project.mp4_HAP.mov',
+    'ali;2025-01-14 12:26:16.90;19 Minutes of John Wick Linked Comp 105-Untitled Project.mp4_HAP.mov',
+    'ali;2025-01-14 12:26:22.45;',
+    'ali;2025-01-14 12:40:00.00;Past the end of the video_HAP.mov',
+  ].join('\n')
+
+  it('turns a headset filename into the archive display name', () => {
+    expect(cueTitle('19 Minutes of John Wick Linked Comp 105-Untitled Project.mp4_HAP.mov'))
+      .toBe('19 Minutes of John Wick Linked Comp 105-Untitled Project')
+    expect(cueTitle('Soldiers fighting with swords - 1_1_HAP.mov')).toBe('Soldiers fighting with swords - 1 1')
+  })
+
+  it('aligns rows to the video by its recorded start, and collapses repeats', () => {
+    const cues = parseCues(csv, '2025-01-14 12:26:02', 600)
+    expect(cues).toEqual([
+      { at: 5.99, title: null },
+      { at: 6.07, title: 'Soldiers fighting with swords - 1 1' },
+      { at: 14.44, title: '19 Minutes of John Wick Linked Comp 105-Untitled Project' },
+      { at: 20.45, title: null },
+    ])
+  })
+
+  it('drops rows from before the video and after it ends', () => {
+    // The opening night's headset logged into one file for eight hours; only
+    // this recording's stretch belongs to it.
+    const early = 'x;2025-01-14 09:00:00.00;An earlier session_HAP.mov\n' + csv
+    const cues = parseCues(early, '2025-01-14 12:26:02', 600)
+    expect(cues.map(c => c.title)).not.toContain('An earlier session')
+    expect(cues.map(c => c.title)).not.toContain('Past the end of the video')
+  })
+
+  it('starts from the first row when the recording lost its time of day', () => {
+    // "VR-14._mitchel" — the index has a date only.
+    expect(parseCues(csv, '2025-01-22', 600)[0]).toEqual({ at: 0, title: null })
+  })
+
+  it('never carries the subject column', () => {
+    expect(JSON.stringify(parseCues(csv, '2025-01-14 12:26:02', 600))).not.toMatch(/ali/)
+  })
+
+  it('looks up the cue in force at any moment, including before the first', () => {
+    const cues = parseCues(csv, '2025-01-14 12:26:02', 600)
+    expect(cueAt(cues, 0)).toBeNull()
+    expect(cueAt(cues, 6.07)).toBe('Soldiers fighting with swords - 1 1')
+    expect(cueAt(cues, 10)).toBe('Soldiers fighting with swords - 1 1')
+    expect(cueAt(cues, 18)).toBe('19 Minutes of John Wick Linked Comp 105-Untitled Project')
+    expect(cueAt(cues, 500)).toBeNull() // after the last gap row
+    expect(cueAt([], 10)).toBeNull()
+  })
+
+  it('is served parsed, for sessions the index lists, and never as raw CSV', () => {
+    const route = code('server/api/experience-logs/[slug]/cues.get.ts')
+    expect(route).toMatch(/\.find\(item => item\.slug === slug\)/)
+    expect(route).toMatch(/if \(!entry\) throw createError\(\{ statusCode: 404/)
+    expect(route).toMatch(/return parseCues\(csv,/)
+  })
+
+  it.each(['ArchivePlayer.vue', 'ArchiveModalPlayer.vue'])('%s follows the playhead on play and on seek', (player) => {
+    const source = read(`app/components/archive/${player}`)
+    expect(source).toMatch(/useSessionCues\(toRef\(props, 'item'\), videoEl\)/)
+    expect(source).toMatch(/@seeked="updateCue"/)
+    expect(source).toMatch(/void updateCue\(\)/)
+    expect(source).toMatch(/<ArchiveSessionCue :title="onScreen" \/>/)
   })
 })
