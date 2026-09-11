@@ -157,9 +157,17 @@ export default defineNuxtConfig({
 
   nitro: {
     /*
-     * Filesystem-backed store for login tokens and sessions. `.data/` is
-     * gitignored. Single-machine only — see server/utils/auth-store.ts for why
-     * this has to become Directus collections before anything is deployed.
+     * Filesystem store for the magic-link RATE-LIMIT counters, and nothing else
+     * (server/api/auth/request.post.ts). Login tokens and sessions used to live
+     * here too; they are Directus collections now (`auth_login_tokens`,
+     * `auth_sessions` — see server/utils/auth-store.ts), which is what lets a
+     * session survive a deploy.
+     *
+     * The counters are fine on an ephemeral disk. On Railway the container's
+     * filesystem is wiped on every deploy, so the limits reset then — at worst
+     * one extra burst of links right after a release. They are also
+     * per-instance, which matters only if the service is ever scaled past one.
+     * `.data/` is gitignored.
      */
     storage: {
       auth: { driver: 'fs', base: '.data/auth' },
