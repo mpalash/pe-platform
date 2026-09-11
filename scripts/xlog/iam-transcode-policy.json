@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListAndReadSourcesAndRunState",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::aam-purgatory-archive",
+        "arn:aws:s3:::aam-purgatory-archive/Experience Log/*",
+        "arn:aws:s3:::aam-purgatory-archive/_xlog-run/*"
+      ]
+    },
+    {
+      "Sid": "WriteDerivativesAndRunLogsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": [
+        "arn:aws:s3:::aam-purgatory-archive/x_logs/*",
+        "arn:aws:s3:::aam-purgatory-archive/_xlog-run/*"
+      ]
+    },
+    {
+      "Sid": "NeverWriteToAnyExistingFolder",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:RestoreObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::aam-purgatory-archive/Experience Log/*",
+        "arn:aws:s3:::aam-purgatory-archive/Clips 480p/*",
+        "arn:aws:s3:::aam-purgatory-archive/Clips HD/*",
+        "arn:aws:s3:::aam-purgatory-archive/Thumbnails/*",
+        "arn:aws:s3:::aam-purgatory-archive/static/*",
+        "arn:aws:s3:::aam-purgatory-archive/texts/*",
+        "arn:aws:s3:::aam-purgatory-archive/Audio overlay for data wall/*",
+        "arn:aws:s3:::aam-purgatory-archive/Purgatory EDIT_Intro_Cyber Performance/*"
+      ]
+    },
+    {
+      "Sid": "NeverDeleteAnything",
+      "Effect": "Deny",
+      "Action": [
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:DeleteBucket",
+        "s3:PutBucketPolicy"
+      ],
+      "Resource": [
+        "arn:aws:s3:::aam-purgatory-archive",
+        "arn:aws:s3:::aam-purgatory-archive/*"
+      ]
+    }
+  ]
+}
